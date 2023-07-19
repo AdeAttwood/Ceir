@@ -5,6 +5,10 @@ use crate::board::{Board, Color};
 use crate::move_gen::MoveGen;
 use crate::uci::UciWriter;
 
+const MAX_POSITIVE: i32 = 500000;
+const MAX_NEGATIVE: i32 = -500000;
+const MATE_SCORE: i32 = 400000;
+
 #[rustfmt::skip]
 const PAWN_SCORE: [i32; 64] = [
     0,   0,   0,   0,   0,   0,   0,   0,
@@ -49,7 +53,7 @@ impl PvList {
         Ok(format!("bestmove {}", node.pv))
     }
 
-    pub fn uci_info(map: &HashMap<usize, SearchNode>) -> Result<String, String> {
+    pub fn uci_info(map: &HashMap<usize, SearchNode>, nodes: i32) -> Result<String, String> {
         let list = PvList::to_list(map);
 
         let last = match list.last() {
@@ -68,13 +72,27 @@ impl PvList {
 
         let line = list
             .iter()
-            .map(|node| node.pv.clone())
-            .collect::<Vec<String>>()
-            .join(" ");
+            .filter_map(|node| {
+                if first.mate > 0 && node.mate < 0 {
+                    None
+                } else {
+                    Some(node.pv.clone())
+                }
+            })
+            .collect::<Vec<String>>();
+
+        let score_unit = if first.mate > 0 { "mate" } else { "cp" };
+        let score_value = if first.mate > 0 {
+            line.len() as i32
+        } else {
+            first.score
+        };
 
         Ok(format!(
-            "info depth {} nodes {} score cp {} pv {}",
-            last.depth, last.nodes, first.score, line
+            "info depth {} nodes {} score {score_unit} {score_value} pv {}",
+            last.depth,
+            nodes,
+            line.join(" ")
         ))
     }
 }
@@ -107,7 +125,12 @@ impl Search {
             + (current_board.black_bishop_board.count_ones() as i32 * 3 * 100)
             + (current_board.black_knight_board.count_ones() as i32 * 3 * 100);
 
-        white_pieces - black_pieces
+        let offset = match current_board.turn {
+            Color::White => 1,
+            Color::Black => -1,
+        };
+
+        (white_pieces - black_pieces) * offset
     }
 
     pub fn evaluate(&mut self, board: &Board) -> i32 {
@@ -123,17 +146,14 @@ impl Search {
             score += PAWN_SCORE[index];
         }
 
-        let offset = match board.turn {
-            Color::White => 1,
-            Color::Black => -1,
-        };
-
-        score * offset
+        score
     }
 
     #[allow(dead_code)]
     fn quiesce(&mut self, board: &Board, mut alpha: i32, beta: i32) -> i32 {
+        let move_gen = MoveGen::new(&board);
         let score = self.evaluate(board);
+
         if score >= beta {
             return beta;
         }
@@ -142,7 +162,6 @@ impl Search {
             alpha = score;
         }
 
-        let move_gen = MoveGen::new(&board);
         for m in &move_gen.pseudo_moves {
             if m.capture.is_none() {
                 return alpha;
@@ -176,21 +195,18 @@ impl Search {
         self.node_count += 1;
 
         if depth == 0 {
-            // TODO(AdeAttwood): Work out how this work currently this is checking around 10000
-            // more nodes that the base evaluate function.
-            // return self.quiesce(&board, alpha, beta);
-            return self.evaluate(&board);
+            return self.quiesce(&board, alpha, beta);
         }
 
         let move_gen = MoveGen::new(&board);
-
         let mut moved = false;
+
         for m in &move_gen.pseudo_moves {
             let mut new_board = board.clone();
             new_board.do_move(m.from, m.to);
 
-            let mg = MoveGen::new(&new_board);
-            if mg.is_check || mg.checking {
+            let move_gen = MoveGen::new(&new_board);
+            if move_gen.is_in_check(new_board.turn.opposite()) {
                 continue;
             }
 
@@ -211,29 +227,38 @@ impl Search {
                         depth: ply,
                         score,
                         nodes: self.node_count,
-                        mate: -1,
+                        mate: if score == MATE_SCORE || score == -MATE_SCORE {
+                            ply
+                        } else {
+                            -1
+                        },
                         pv: m.format_move(),
                     },
                 );
 
-                // if self.node_count % 1000 == 0 {
-                match PvList::uci_info(&self.pv_list) {
-                    Ok(info) => println!("{info}"),
-                    Err(..) => {}
+                if self.node_count % 1000 == 0 {
+                    match PvList::uci_info(&self.pv_list, self.node_count) {
+                        Ok(info) => println!("{info}"),
+                        Err(..) => {}
+                    }
                 }
-                // }
             }
         }
 
         if !moved {
-            println!("------------------------------------------- MATE");
+            return -MATE_SCORE;
         }
 
         alpha
     }
 
     pub fn search(&mut self, board: &mut Board, writer: &mut dyn UciWriter) {
-        self.negamax(board, self.depth, 1, -50000, 50000);
+        self.negamax(board, self.depth, 1, MAX_NEGATIVE, MAX_POSITIVE);
+
+        match PvList::uci_info(&self.pv_list, self.node_count) {
+            Ok(info) => writer.writeln(&info),
+            Err(_) => {}
+        }
 
         match PvList::uci_bestmove(&self.pv_list) {
             Ok(bestmove) => writer.writeln(&bestmove),
@@ -326,6 +351,37 @@ mod tests {
 
         let move_gen = MoveGen::new(&board);
         assert!(!move_gen.is_check);
-        assert!(!move_gen.checking);
+    }
+
+    #[test]
+    fn will_find_a_lader_mate() {
+        let mut writer = UciTestWriter::new();
+        let mut board = Board::from_fen_str("5k2/8/R7/1R6/8/8/4K3/8 w - - 14 8").unwrap();
+
+        let mut search = Search::new(5);
+        search.search(&mut board, &mut writer);
+
+        let info = match PvList::uci_info(&search.pv_list, 0) {
+            Ok(m) => m.clone(),
+            Err(message) => panic!("{message}"),
+        };
+
+        assert!(info.ends_with("score mate 3 pv b5b7 f8g8 a6a8"));
+    }
+
+    #[test]
+    fn will_find_another_lader_mate() {
+        let mut writer = UciTestWriter::new();
+        let mut board = Board::from_fen_str("5k2/8/8/8/7R/R7/8/4K3 w - - 0 1").unwrap();
+
+        let mut search = Search::new(6);
+        search.search(&mut board, &mut writer);
+
+        let info = match PvList::uci_info(&search.pv_list, 0) {
+            Ok(m) => m.clone(),
+            Err(message) => panic!("{message}"),
+        };
+
+        assert!(info.ends_with("score mate 5 pv a3a7 f8g8 h4h1 g8f8 h1h8"));
     }
 }

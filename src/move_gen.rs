@@ -226,12 +226,16 @@ impl MoveGen<'_> {
             Some(victim) => -MVV_LVA[victim as usize][m.piece as usize],
         });
 
-        let king = match self.board.turn {
+        self.is_check = self.is_in_check(self.board.turn);
+    }
+
+    pub fn is_in_check(&self, turn: Color) -> bool {
+        let king = match turn {
             Color::Black => self.board.black_king_board,
             Color::White => self.board.white_king_board,
         };
 
-        let attackers = match self.board.turn {
+        let attackers = match turn {
             Color::Black => self.white_boards(),
             Color::White => self.black_boards(),
         };
@@ -249,10 +253,12 @@ impl MoveGen<'_> {
                 };
 
                 if king & move_board != 0 {
-                    self.is_check = true;
+                    return true;
                 }
             }
         }
+
+        false
     }
 }
 
