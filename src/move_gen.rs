@@ -144,22 +144,22 @@ impl MoveGen<'_> {
 
     fn black_boards(&self) -> Vec<(Color, Piece, BitBoard)> {
         vec![
+            (Color::Black, Piece::Queen, self.board.black_queen_board),
             (Color::Black, Piece::Rook, self.board.black_rook_board),
             (Color::Black, Piece::Bishop, self.board.black_bishop_board),
             (Color::Black, Piece::Knight, self.board.black_knight_board),
             (Color::Black, Piece::Pawn, self.board.black_pawn_board),
-            (Color::Black, Piece::Queen, self.board.black_queen_board),
             (Color::Black, Piece::King, self.board.black_king_board),
         ]
     }
 
     fn white_boards(&self) -> Vec<(Color, Piece, BitBoard)> {
         vec![
+            (Color::White, Piece::Queen, self.board.white_queen_board),
             (Color::White, Piece::Rook, self.board.white_rook_board),
             (Color::White, Piece::Bishop, self.board.white_bishop_board),
             (Color::White, Piece::Knight, self.board.white_knight_board),
             (Color::White, Piece::Pawn, self.board.white_pawn_board),
-            (Color::White, Piece::Queen, self.board.white_queen_board),
             (Color::White, Piece::King, self.board.white_king_board),
         ]
     }
