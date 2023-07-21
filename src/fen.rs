@@ -5,6 +5,10 @@ use crate::board::{Color, Piece};
 /// See: https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
 pub struct Fen {
     pub turn: Color,
+    pub white_castling_kings_side: bool,
+    pub white_castling_queen_side: bool,
+    pub black_castling_kings_side: bool,
+    pub black_castling_queen_side: bool,
     pub squares: Vec<Option<(Color, Piece)>>,
 }
 
@@ -75,7 +79,32 @@ impl Fen {
             return Err(format!("Unable to parse color"));
         };
 
-        Ok(Fen { squares, turn })
+        let mut fen = Fen {
+            squares,
+            turn,
+            white_castling_kings_side: false,
+            white_castling_queen_side: false,
+            black_castling_kings_side: false,
+            black_castling_queen_side: false,
+        };
+
+        let castling = parts.next();
+        if castling.is_some() {
+            for c in castling.unwrap().chars() {
+                match c {
+                    'K' => fen.white_castling_kings_side = true,
+                    'Q' => fen.white_castling_queen_side = true,
+                    'k' => fen.black_castling_kings_side = true,
+                    'q' => fen.black_castling_queen_side = true,
+                    '-' => {}
+                    _ => {
+                        return Err(format!("Unexpected char '{c}' in castling part"));
+                    }
+                }
+            }
+        }
+
+        Ok(fen)
     }
 
     pub fn from_str(fen: &str) -> Result<Self, String> {
@@ -153,5 +182,32 @@ mod tests {
         assert_position!(&fen.squares[7], Some((Color::Black, Piece::Rook)));
 
         assert_eq!(true, matches!(fen.turn, Color::White));
+    }
+
+    macro_rules! assert_castling {
+        ($pattern:literal, $white_king:literal, $white_queen:literal, $black_king:literal, $black_queen:literal) => {
+            let fen_string = format!(
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w {} - 0 1",
+                $pattern
+            );
+
+            let fen = Fen::from_str(&fen_string).unwrap();
+            assert_eq!(fen.white_castling_kings_side, $white_king);
+            assert_eq!(fen.white_castling_queen_side, $white_queen);
+            assert_eq!(fen.black_castling_kings_side, $black_king);
+            assert_eq!(fen.black_castling_queen_side, $black_queen);
+        };
+    }
+
+    #[test]
+    fn castling() {
+        assert_castling!("KQkq", true, true, true, true);
+        assert_castling!("KQk", true, true, true, false);
+        assert_castling!("KQ", true, true, false, false);
+        assert_castling!("K", true, false, false, false);
+        assert_castling!("-", false, false, false, false);
+
+        // Test in a different order
+        assert_castling!("QK", true, true, false, false);
     }
 }
