@@ -1,5 +1,6 @@
 use crate::bitboards::*;
 use crate::fen::Fen;
+use crate::moves::Move;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -245,13 +246,53 @@ impl Board {
             | self.black_rook_board
     }
 
+    pub fn black_boards(&self) -> Vec<(Color, Piece, BitBoard)> {
+        vec![
+            (Color::Black, Piece::Queen, self.black_queen_board),
+            (Color::Black, Piece::Rook, self.black_rook_board),
+            (Color::Black, Piece::Bishop, self.black_bishop_board),
+            (Color::Black, Piece::Knight, self.black_knight_board),
+            (Color::Black, Piece::Pawn, self.black_pawn_board),
+            (Color::Black, Piece::King, self.black_king_board),
+        ]
+    }
+
+    pub fn white_boards(&self) -> Vec<(Color, Piece, BitBoard)> {
+        vec![
+            (Color::White, Piece::Queen, self.white_queen_board),
+            (Color::White, Piece::Rook, self.white_rook_board),
+            (Color::White, Piece::Bishop, self.white_bishop_board),
+            (Color::White, Piece::Knight, self.white_knight_board),
+            (Color::White, Piece::Pawn, self.white_pawn_board),
+            (Color::White, Piece::King, self.white_king_board),
+        ]
+    }
+
     pub fn occupied(&self) -> BitBoard {
         self.black_pieces() | self.white_pieces()
     }
 
-    pub fn do_move(&mut self, from: Square, to: Square) {
-        let from_board: BitBoard = 1 << (from as usize);
-        let to_board: BitBoard = 1 << (to as usize);
+    pub fn piece_at(&self, square: Square) -> Option<Piece> {
+        let source_board = 1 << (square as usize);
+
+        for (_, piece, target_board) in self.white_boards() {
+            if source_board & target_board != 0 {
+                return Some(piece);
+            }
+        }
+
+        for (_, piece, target_board) in self.black_boards() {
+            if source_board & target_board != 0 {
+                return Some(piece);
+            }
+        }
+
+        None
+    }
+
+    pub fn do_move(&mut self, m: &Move) {
+        let from_board: BitBoard = 1 << (m.from as usize);
+        let to_board: BitBoard = 1 << (m.to as usize);
 
         let white_boards = vec![
             &mut self.white_rook_board,

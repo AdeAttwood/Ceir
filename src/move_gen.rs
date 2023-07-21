@@ -142,32 +142,10 @@ impl MoveGen<'_> {
             | (bb >> 7 & !FILE_BIT_BOARDS[0])
     }
 
-    fn black_boards(&self) -> Vec<(Color, Piece, BitBoard)> {
-        vec![
-            (Color::Black, Piece::Queen, self.board.black_queen_board),
-            (Color::Black, Piece::Rook, self.board.black_rook_board),
-            (Color::Black, Piece::Bishop, self.board.black_bishop_board),
-            (Color::Black, Piece::Knight, self.board.black_knight_board),
-            (Color::Black, Piece::Pawn, self.board.black_pawn_board),
-            (Color::Black, Piece::King, self.board.black_king_board),
-        ]
-    }
-
-    fn white_boards(&self) -> Vec<(Color, Piece, BitBoard)> {
-        vec![
-            (Color::White, Piece::Queen, self.board.white_queen_board),
-            (Color::White, Piece::Rook, self.board.white_rook_board),
-            (Color::White, Piece::Bishop, self.board.white_bishop_board),
-            (Color::White, Piece::Knight, self.board.white_knight_board),
-            (Color::White, Piece::Pawn, self.board.white_pawn_board),
-            (Color::White, Piece::King, self.board.white_king_board),
-        ]
-    }
-
     fn get_capture(&self, source_board: BitBoard) -> Option<Piece> {
         let bitboards = match self.board.turn.opposite() {
-            Color::Black => self.black_boards(),
-            Color::White => self.white_boards(),
+            Color::Black => self.board.black_boards(),
+            Color::White => self.board.white_boards(),
         };
 
         for (_, piece, target_board) in bitboards {
@@ -181,8 +159,8 @@ impl MoveGen<'_> {
 
     fn init(&mut self) {
         let bitboards = match self.board.turn {
-            Color::Black => self.black_boards(),
-            Color::White => self.white_boards(),
+            Color::Black => self.board.black_boards(),
+            Color::White => self.board.white_boards(),
         };
 
         let available_squares = !match self.board.turn {
@@ -236,8 +214,8 @@ impl MoveGen<'_> {
         };
 
         let attackers = match turn {
-            Color::Black => self.white_boards(),
-            Color::White => self.black_boards(),
+            Color::Black => self.board.white_boards(),
+            Color::White => self.board.black_boards(),
         };
 
         for (_, piece, board) in attackers {

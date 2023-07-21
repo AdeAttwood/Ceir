@@ -1,6 +1,7 @@
 use crate::bitboards::Square;
 use crate::board::Board;
 use crate::fen::Fen;
+use crate::moves::Move;
 use crate::search::Search;
 use crate::uci_command::{GoOptions, PositionOptions, UciCommand};
 
@@ -84,6 +85,14 @@ impl Uci {
                 }
             };
 
+            let piece = match self.board.piece_at(from) {
+                Some(p) => p,
+                None => {
+                    writer.writeln(&format!("There is no piece on the source square of {s}"));
+                    return;
+                }
+            };
+
             let to = match Square::try_from(&s[2..4]) {
                 Ok(s) => s,
                 Err(m) => {
@@ -92,7 +101,14 @@ impl Uci {
                 }
             };
 
-            self.board.do_move(from, to);
+            let m = Move {
+                piece,
+                from,
+                to,
+                capture: self.board.piece_at(to),
+            };
+
+            self.board.do_move(&m);
         }
     }
 

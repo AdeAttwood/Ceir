@@ -168,7 +168,7 @@ impl Search {
             }
 
             let mut new_board = board.clone();
-            new_board.do_move(m.from, m.to);
+            new_board.do_move(m);
 
             let score = -self.quiesce(&new_board, -beta, -alpha);
 
@@ -203,7 +203,7 @@ impl Search {
 
         for m in &move_gen.pseudo_moves {
             let mut new_board = board.clone();
-            new_board.do_move(m.from, m.to);
+            new_board.do_move(m);
 
             let move_gen = MoveGen::new(&new_board);
             if move_gen.is_in_check(new_board.turn.opposite()) {
@@ -270,7 +270,7 @@ impl Search {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{bitboards::Square, fen::Fen};
+    use crate::{bitboards::Square, fen::Fen, moves::Move};
 
     pub struct UciTestWriter {
         pub lines: Vec<String>,
@@ -339,6 +339,14 @@ mod tests {
             }
         };
 
+        let piece = match board.piece_at(from) {
+            Some(p) => p,
+            None => {
+                writer.writeln(&format!("There is no piece on the source square of {s}"));
+                return;
+            }
+        };
+
         let to = match Square::try_from(&s[2..4]) {
             Ok(s) => s,
             Err(m) => {
@@ -347,7 +355,14 @@ mod tests {
             }
         };
 
-        board.do_move(from, to);
+        let m = Move {
+            piece,
+            from,
+            to,
+            capture: board.piece_at(to),
+        };
+
+        board.do_move(&m);
 
         let move_gen = MoveGen::new(&board);
         assert!(!move_gen.is_check);
