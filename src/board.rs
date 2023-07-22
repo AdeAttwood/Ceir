@@ -58,6 +58,11 @@ pub struct Board {
     pub black_queen_board: BitBoard,
     pub black_rook_board: BitBoard,
 
+    pub white_castling_kings_side: bool,
+    pub white_castling_queen_side: bool,
+    pub black_castling_kings_side: bool,
+    pub black_castling_queen_side: bool,
+
     // An extra bit board for printing markers on the board. This is useful for debugging.
     markers: BitBoard,
 }
@@ -80,6 +85,11 @@ impl Board {
             white_pawn_board: 0,
             white_queen_board: 0,
             white_rook_board: 0,
+
+            white_castling_kings_side: true,
+            white_castling_queen_side: true,
+            black_castling_kings_side: true,
+            black_castling_queen_side: true,
 
             markers: 0,
         }
@@ -330,6 +340,41 @@ impl Board {
             }
         }
 
+        // Castle white
+        if m.piece == Piece::King && m.from == Square::E1 && m.to == Square::G1 {
+            self.white_rook_board &= !(1 << (Square::H1 as usize));
+            self.white_rook_board |= 1 << (Square::F1 as usize);
+        } else if m.piece == Piece::King && m.from == Square::E1 && m.to == Square::C1 {
+            self.white_rook_board &= !(1 << (Square::A1 as usize));
+            self.white_rook_board |= 1 << (Square::D1 as usize);
+        } else if m.piece == Piece::King && m.from == Square::E1 {
+            self.white_castling_kings_side = false;
+            self.white_castling_queen_side = false;
+        }
+
+        // Castle black
+        if m.piece == Piece::King && m.from == Square::E8 && m.to == Square::G8 {
+            self.black_rook_board &= !(1 << (Square::H8 as usize));
+            self.black_rook_board |= 1 << (Square::F8 as usize);
+        } else if m.piece == Piece::King && m.from == Square::E8 && m.to == Square::C8 {
+            self.black_rook_board &= !(1 << (Square::A8 as usize));
+            self.black_rook_board |= 1 << (Square::D8 as usize);
+        } else if m.piece == Piece::King && m.from == Square::E8 {
+            self.black_castling_kings_side = false;
+            self.black_castling_queen_side = false;
+        }
+
+        // Update the castling rights when any of the rooks are moved.
+        if m.piece == Piece::Rook && m.from == Square::A1 {
+            self.white_castling_queen_side = false;
+        } else if m.piece == Piece::Rook && m.from == Square::H1 {
+            self.white_castling_kings_side = false;
+        } else if m.piece == Piece::Rook && m.from == Square::A8 {
+            self.black_castling_queen_side = false;
+        } else if m.piece == Piece::Rook && m.from == Square::H8 {
+            self.black_castling_kings_side = false;
+        }
+
         self.turn = self.turn.opposite();
     }
 }
@@ -345,5 +390,39 @@ mod tests {
             board.get_hash(),
             "0010000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000"
         );
+    }
+
+    #[test]
+    fn do_move_castle_white_king_side() {
+        let mut board = Board::from_fen_str(
+            "rnbqk2r/ppp2ppp/3b1n2/3pp3/4P3/3P1N2/PPP1BPPP/RNBQK2R w KQkq - 1 5",
+        )
+        .unwrap();
+
+        board.do_move(&Move {
+            from: Square::E1,
+            to: Square::G1,
+            piece: Piece::King,
+            capture: None,
+        });
+
+        assert_eq!(board.piece_at(Square::F1), Some(Piece::Rook));
+    }
+
+    #[test]
+    fn do_move_castle_white_queen_site() {
+        let mut board = Board::from_fen_str(
+            "rnb2k1r/p3qppp/1p1b1n2/2ppp3/Q1P1P3/2NP1N2/PP1BBPPP/R3K2R w KQ - 4 9",
+        )
+        .unwrap();
+
+        board.do_move(&Move {
+            from: Square::E1,
+            to: Square::C1,
+            piece: Piece::King,
+            capture: None,
+        });
+
+        assert_eq!(board.piece_at(Square::D1), Some(Piece::Rook));
     }
 }
