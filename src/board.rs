@@ -167,28 +167,6 @@ impl Board {
         }
     }
 
-    fn get_hash(&self) -> String {
-        format!(
-            "{:b}{:b}{:b}{:b}{:b}{:b}{:b}{:b}{:b}{:b}{:b}{:b}{}",
-            self.black_rook_board,
-            self.black_knight_board,
-            self.black_king_board,
-            self.black_queen_board,
-            self.black_bishop_board,
-            self.black_pawn_board,
-            self.white_rook_board,
-            self.white_knight_board,
-            self.white_king_board,
-            self.white_queen_board,
-            self.white_bishop_board,
-            self.white_pawn_board,
-            match self.turn {
-                Color::White => 1,
-                Color::Black => 0,
-            }
-        )
-    }
-
     pub fn print(&self) {
         println!("     a  b  c  d  e  f  g  h");
         println!("    ────────────────────────");
@@ -382,15 +360,6 @@ impl Board {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn will_do_it() {
-        let board = Board::from_fen_str("3kq3/8/8/8/8/8/8/3K4 b - - 0 1").unwrap();
-        assert_eq!(
-            board.get_hash(),
-            "0010000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000"
-        );
-    }
 
     #[test]
     fn do_move_castle_white_king_side() {
