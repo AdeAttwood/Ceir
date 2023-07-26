@@ -24,13 +24,13 @@ pub fn parse(reader: &mut PgnReader) -> Vec<PgnGame> {
                 game.meta.insert(key, value);
                 reader.read_to_whitespace();
             }
-            '1'..='9' => {
+            '0'..='9' => {
                 if reader.peek().unwrap() == '-' || reader.peek().unwrap() == '/' {
                     match reader.read_to_whitespace().unwrap().as_str() {
-                        "0-1" => game.result = GameResult::WinBlack,
-                        "1-0" => game.result = GameResult::WinWhite,
-                        "1/2-1/2" => game.result = GameResult::Draw,
-                        _ => panic!("Unable to parse result"),
+                        "-1" => game.result = GameResult::WinBlack,
+                        "-0" => game.result = GameResult::WinWhite,
+                        "/2-1/2" => game.result = GameResult::Draw,
+                        result => panic!("Unable to parse result {result}"),
                     };
 
                     games.push(game);
@@ -53,9 +53,21 @@ pub fn parse(reader: &mut PgnReader) -> Vec<PgnGame> {
                     .expect(&format!("Unable to convert {index_str} to a number"));
 
                 let white_move = reader.read_to_whitespace().expect("Expected from");
+                let comment = match reader.peek().unwrap() {
+                    '{' => {
+                        reader.next();
+                        let result = reader.read_to('}');
+                        reader.skip_whitespace();
+
+                        result
+                    }
+                    _ => None,
+                };
+
                 game.moves.push(PgnMove {
                     ply: index,
                     san: white_move,
+                    comment,
                 });
 
                 let black_move_or_result = reader.read_to_whitespace().expect("Expected to");
@@ -75,9 +87,21 @@ pub fn parse(reader: &mut PgnReader) -> Vec<PgnGame> {
                     continue;
                 }
 
+                let comment = match reader.peek().unwrap() {
+                    '{' => {
+                        reader.next();
+                        let result = reader.read_to('}');
+                        reader.skip_whitespace();
+
+                        result
+                    }
+                    _ => None,
+                };
+
                 game.moves.push(PgnMove {
                     ply: index,
                     san: black_move_or_result,
+                    comment,
                 });
             }
             '*' => {

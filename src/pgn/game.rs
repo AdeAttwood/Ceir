@@ -6,6 +6,7 @@ use super::game_result::GameResult;
 pub struct PgnMove {
     pub ply: i32,
     pub san: String,
+    pub comment: Option<String>,
 }
 
 pub struct PgnGame {
