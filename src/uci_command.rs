@@ -16,6 +16,9 @@ pub struct GoOptions {
     pub winc: i32,
     /// black increment per move in mseconds if x > 0
     pub binc: i32,
+    /// there are x moves to the next time control this will only be sent if x > 0, if you don't
+    /// get this and get the wtime and btime it's sudden death
+    pub movestogo: i32,
 }
 
 #[derive(Debug, PartialEq)]
@@ -81,6 +84,7 @@ impl TryFrom<&String> for UciCommand {
                     btime: 0,
                     binc: 0,
                     winc: 0,
+                    movestogo: 0,
                 };
 
                 while let Some(token) = tokens.next() {
@@ -119,6 +123,13 @@ impl TryFrom<&String> for UciCommand {
                                 Err(message) => return Err(message.to_string()),
                             },
                             None => return Err(format!("Missing binc value")),
+                        },
+                        "movestogo" => match tokens.next() {
+                            Some(depth) => match depth.to_string().parse::<i32>() {
+                                Ok(number) => options.movestogo = number,
+                                Err(message) => return Err(message.to_string()),
+                            },
+                            None => return Err(format!("Missing movestogo value")),
                         },
                         _ => return Err(format!("Unexpected token {token}")),
                     }
