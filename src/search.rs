@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::bitboards::BitBoardIterator;
-use crate::board::{Board, Color};
+use crate::board::{Board, Color, Piece};
 use crate::move_gen::MoveGen;
 use crate::uci::UciWriter;
 
@@ -11,14 +11,74 @@ const MATE_SCORE: i32 = 400000;
 
 #[rustfmt::skip]
 const PAWN_SCORE: [i32; 64] = [
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0, -10, -10,   0,   0,   0,
-    0,   0,   0,   5,   5,   0,   0,   0,
-    5,   5,   10,  20,  25,   5,   5,   5,
-    10,  10,  10,  20,  20,  10,  10,  10,
-    20,  20,  20,  30,  30,  30,  20,  20,
-    30,  30,  30,  40,  40,  30,  30,  30,
-    90,  90,  90,  90,  90,  90,  90,  90
+    0,  0,  0,   0,   0,   0,   0,  0,
+    50, 50, 50,  50,  50,  50,  50, 50,
+    10, 10, 20,  30,  30,  20,  10, 10,
+    5,  5,  10,  25,  25,  10,  5,  5,
+    0,  0,  0,   20,  20,  0,   0,  0,
+    5,  -5, -10, 0,   0,   -10, -5, 5,
+    5,  10, 10,  -20, -20, 10,  10, 5,
+    0,  0,  0,   0,   0,   0,   0,  0
+];
+
+#[rustfmt::skip]
+const KNIGHT_SCORE: [i32; 64] = [
+    -50,-40,-30,-30,-30,-30,-40,-50,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50,
+];
+
+#[rustfmt::skip]
+const BISHOP_SCORE: [i32; 64] = [
+    -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5, 10, 10,  5,  0,-10,
+    -10,  5,  5, 10, 10,  5,  5,-10,
+    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20,
+];
+
+#[rustfmt::skip]
+const ROOK_SCORE: [i32; 64] = [
+     0,  0,  0,  0,  0,  0,  0,  0,
+     5, 10, 10, 10, 10, 10, 10,  5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+     0,  0,  0,  5,  5,  0,  0,  0
+];
+
+#[rustfmt::skip]
+const QUEEN_SCORE: [i32; 64] = [
+    -20,-10,-10, -5, -5,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5,  5,  5,  5,  0,-10,
+     -5,  0,  5,  5,  5,  5,  0, -5,
+      0,  0,  5,  5,  5,  5,  0, -5,
+    -10,  5,  5,  5,  5,  5,  0,-10,
+    -10,  0,  5,  0,  0,  0,  0,-10,
+    -20,-10,-10, -5, -5,-10,-10,-20
+];
+
+#[rustfmt::skip]
+const KING_SCORE: [i32; 64] = [
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -20,-30,-30,-40,-40,-30,-30,-20,
+    -10,-20,-20,-20,-20,-20,-20,-10,
+     20, 20,  0,  0,  0,  0, 20, 20,
+     20, 30, 10,  0,  0, 10, 30, 20
 ];
 
 #[derive(Debug, Clone)]
@@ -136,14 +196,28 @@ impl Search {
     pub fn evaluate(&mut self, board: &Board) -> i32 {
         let mut score = self.material_score(&board);
 
-        let pawns = match board.turn {
-            Color::Black => board.black_pawn_board.reverse_bits(),
-            Color::White => board.white_pawn_board,
+        let bitboards = match board.turn {
+            Color::White => board.white_boards(),
+            Color::Black => board.black_boards(),
         };
 
-        let mut it = BitBoardIterator::new(pawns);
-        while let Some(index) = it.next() {
-            score += PAWN_SCORE[index];
+        for (color, piece, bitboard) in bitboards {
+            let mut it = BitBoardIterator::new(if color == Color::White {
+                bitboard
+            } else {
+                bitboard.reverse_bits()
+            });
+
+            while let Some(index) = it.next() {
+                score += match piece {
+                    Piece::Pawn => PAWN_SCORE[index],
+                    Piece::Rook => ROOK_SCORE[index],
+                    Piece::Queen => QUEEN_SCORE[index],
+                    Piece::Bishop => BISHOP_SCORE[index],
+                    Piece::Knight => KNIGHT_SCORE[index],
+                    Piece::King => KING_SCORE[index],
+                }
+            }
         }
 
         score
@@ -300,13 +374,13 @@ mod tests {
     #[test]
     fn evaluate_white() {
         let score = evaluate_fen("3kq3/8/8/8/8/8/8/3K4 w - - 0 1");
-        assert_eq!(score, -900);
+        assert_eq!(score, -950);
     }
 
     #[test]
     fn evaluate_black() {
         let score = evaluate_fen("3kq3/8/8/8/8/8/8/3K4 b - - 0 1");
-        assert_eq!(score, 900);
+        assert_eq!(score, 845);
     }
 
     #[test]
