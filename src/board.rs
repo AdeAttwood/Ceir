@@ -133,6 +133,28 @@ impl Board {
         self.turn = fen.turn;
     }
 
+    pub fn hash(&self) -> String {
+        format!(
+            "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+            self.black_rook_board,
+            self.black_bishop_board,
+            self.black_knight_board,
+            self.black_pawn_board,
+            self.black_queen_board,
+            self.black_king_board,
+            self.white_bishop_board,
+            self.white_king_board,
+            self.white_knight_board,
+            self.white_pawn_board,
+            self.white_queen_board,
+            self.white_rook_board,
+            self.white_castling_kings_side,
+            self.white_castling_queen_side,
+            self.black_castling_kings_side,
+            self.black_castling_queen_side,
+        )
+    }
+
     pub fn from_fen_str(fen: &str) -> Result<Self, String> {
         let mut board = Self::empty();
         board.load_fen(&Fen::from_str(&fen)?);
@@ -360,6 +382,21 @@ impl Board {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn will_hash_the_board() {
+        let board_one = Board::from_fen_str(
+            "rnbqk2r/ppp2ppp/3b1n2/3pp3/4P3/3P1N2/PPP1BPPP/RNBQK2R w KQkq - 1 5",
+        )
+        .unwrap();
+
+        let board_two = Board::from_fen_str(
+            "rnb2k1r/p3qppp/1p1b1n2/2ppp3/Q1P1P3/2NP1N2/PP1BBPPP/R3K2R w KQ - 4 9",
+        )
+        .unwrap();
+
+        assert_ne!(board_one.hash(), board_two.hash());
+    }
 
     #[test]
     fn do_move_castle_white_king_side() {
