@@ -120,7 +120,7 @@ impl Uci {
     }
 
     fn uci(&self, writer: &mut dyn UciWriter) {
-        writer.writeln("id name ChessRs");
+        writer.writeln("id name Ceir");
         writer.writeln("id author Ade Attwood");
         writer.writeln("uciok");
     }
