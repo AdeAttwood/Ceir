@@ -1,4 +1,5 @@
 use crate::lookup::EDGES;
+use crate::lookup::FILE_BITBOARDS;
 use crate::{bb, BitBoard, BitBoardIterator, Board, Color, Movement, Piece, Square};
 
 /// Scan a board in a direction until we hit a blocker or we hit the edge of the board. This will
@@ -58,6 +59,21 @@ pub fn bishop_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard
     line_attacks & !square_board
 }
 
+/// Create the knight_moves from there move position. This may need to be moved into a
+/// lookup of pre built bitboards like the rook and bishop attacks.
+///
+/// https://www.chessprogramming.org/Knight_Pattern
+fn knight_attacks(bb: BitBoard) -> BitBoard {
+    (bb >> 6 & !(FILE_BITBOARDS[7] | FILE_BITBOARDS[6]))
+        | (bb >> 15 & !FILE_BITBOARDS[7])
+        | (bb >> 17 & !FILE_BITBOARDS[0])
+        | (bb >> 10 & !(FILE_BITBOARDS[0] | FILE_BITBOARDS[1]))
+        | (bb << 6 & !(FILE_BITBOARDS[0] | FILE_BITBOARDS[1]))
+        | (bb << 15 & !FILE_BITBOARDS[0])
+        | (bb << 17 & !FILE_BITBOARDS[7])
+        | (bb << 10 & !(FILE_BITBOARDS[7] | FILE_BITBOARDS[6]))
+}
+
 pub fn pseudo_moves(board: &Board) -> Vec<Movement> {
     let mut output = Vec::new();
 
@@ -77,7 +93,7 @@ pub fn pseudo_moves(board: &Board) -> Vec<Movement> {
         let mut itr = BitBoardIterator::new(board);
         while let Some(index) = itr.next() {
             let move_board = match piece {
-                // Piece::Knight => self.knight_moves(index),
+                Piece::Knight => knight_attacks(bb!(index)),
                 // Piece::King => self.king_moves(index),
                 Piece::Bishop => bishop_attacks(bb!(index), occupancies),
                 // Piece::Queen => self.queen_moves(index),
@@ -242,6 +258,40 @@ mod tests {
                 " . . . . . . . . ",
                 " . . . . . . . . ",
             )
+        );
+    }
+
+    #[test]
+    fn calculates_knight_attacks_for_a_middle_square() {
+        assert_eq!(
+            knight_attacks(bb!(Square::D4)),
+            board(concat!(
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . x . x . . . ",
+                " . x . . . x . . ",
+                " . . . . . . . . ",
+                " . x . . . x . . ",
+                " . . x . x . . . ",
+                " . . . . . . . . ",
+            ))
+        );
+    }
+
+    #[test]
+    fn calculates_knight_attacks_on_the_edge() {
+        assert_eq!(
+            knight_attacks(bb!(Square::B2)),
+            board(concat!(
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " x . x . . . . . ",
+                " . . . x . . . . ",
+                " . . . . . . . . ",
+                " . . . x . . . . ",
+            ))
         );
     }
 }
