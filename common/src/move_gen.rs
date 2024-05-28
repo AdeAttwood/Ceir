@@ -39,7 +39,7 @@ fn scan_negative(occupancies: BitBoard, square_board: BitBoard, direction: i8) -
 }
 
 /// Calculates all of the available attacks that a rook can make given that its on a given square.
-pub fn rook_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard {
+fn rook_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard {
     let line_attacks = scan_positive(occupancies, square_board, 1)
         | scan_positive(occupancies, square_board, 8)
         | scan_negative(occupancies, square_board, 1)
@@ -50,7 +50,7 @@ pub fn rook_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard {
 
 /// Calculates all of the available attacks that a bishop can make given that its on a given
 /// square.
-pub fn bishop_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard {
+fn bishop_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard {
     let line_attacks = scan_positive(occupancies, square_board, 7)
         | scan_positive(occupancies, square_board, 9)
         | scan_negative(occupancies, square_board, 7)
