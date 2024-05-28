@@ -59,6 +59,12 @@ fn bishop_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard {
     line_attacks & !square_board
 }
 
+/// Calculate all of the attacks that a queen can make given that its on a given square. This one
+/// is calculated by combining the rook and bishop attacks.
+fn queen_attacks(square_board: BitBoard, occupancies: BitBoard) -> BitBoard {
+    rook_attacks(square_board, occupancies) | bishop_attacks(square_board, occupancies)
+}
+
 /// Create the knight_moves from there move position. This may need to be moved into a
 /// lookup of pre built bitboards like the rook and bishop attacks.
 ///
@@ -96,7 +102,7 @@ pub fn pseudo_moves(board: &Board) -> Vec<Movement> {
                 Piece::Knight => knight_attacks(bb!(index)),
                 // Piece::King => self.king_moves(index),
                 Piece::Bishop => bishop_attacks(bb!(index), occupancies),
-                // Piece::Queen => self.queen_moves(index),
+                Piece::Queen => queen_attacks(bb!(index), occupancies),
                 Piece::Rook => rook_attacks(bb!(index), occupancies),
                 // Piece::Pawn => self.pawn_moves(self.board.turn, index),
                 _ => 0,
@@ -258,6 +264,35 @@ mod tests {
                 " . . . . . . . . ",
                 " . . . . . . . . ",
             )
+        );
+    }
+
+    #[test]
+    fn quick_queen_attack_test() {
+        assert_eq!(
+            queen_attacks(
+                bb!(Square::D6),
+                board(concat!(
+                    " . x . . . x . . ",
+                    " . . . . . . . . ",
+                    " . x . . . x . . ",
+                    " . . . . . . . . ",
+                    " . x . x . x . . ",
+                    " . . . . . . . . ",
+                    " . . . . . . . . ",
+                    " . . . . . . . . ",
+                ),)
+            ),
+            board(concat!(
+                " . x . x . x . . ",
+                " . . x x x . . . ",
+                " . x x . x x . . ",
+                " . . x x x . . . ",
+                " . x . x . x . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+            ))
         );
     }
 
