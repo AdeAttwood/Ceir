@@ -1,6 +1,6 @@
-use crate::BitBoard;
 use crate::bb;
 use crate::square::Square::*;
+use crate::BitBoard;
 
 #[rustfmt::skip]
 pub const FILE_BITBOARDS: [BitBoard; 8] = [
@@ -25,6 +25,15 @@ pub const RANK_BITBOARDS: [BitBoard; 8] = [
     bb!(A7) | bb!(B7) | bb!(C7) | bb!(D7) | bb!(E7) | bb!(F7) | bb!(G7) | bb!(H7),
     bb!(A8) | bb!(B8) | bb!(C8) | bb!(D8) | bb!(E8) | bb!(F8) | bb!(G8) | bb!(H8),
 ];
+
+pub const ALL_SQUARES: BitBoard = RANK_BITBOARDS[0]
+    | RANK_BITBOARDS[1]
+    | RANK_BITBOARDS[2]
+    | RANK_BITBOARDS[3]
+    | RANK_BITBOARDS[4]
+    | RANK_BITBOARDS[5]
+    | RANK_BITBOARDS[6]
+    | RANK_BITBOARDS[7];
 
 #[rustfmt::skip]
 pub const ROOK_ATTACKS: [BitBoard; 64] = [
@@ -88,5 +97,5 @@ pub const DIAGONAL_BIT_BOARDS: [BitBoard; 15] = [
     bb!(A8),
 ];
 
-pub const EDGES: BitBoard = RANK_BITBOARDS[0] | RANK_BITBOARDS[7] | FILE_BITBOARDS[0] | FILE_BITBOARDS[7];
-
+pub const EDGES: BitBoard =
+    RANK_BITBOARDS[0] | RANK_BITBOARDS[7] | FILE_BITBOARDS[0] | FILE_BITBOARDS[7];

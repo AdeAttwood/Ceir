@@ -67,6 +67,10 @@ impl Square {
         Self::from_usize(rank << 3 ^ (7 - file))
     }
 
+    pub fn file_char(&self) -> char {
+        (7 - (*self as usize & 7) as u8 + b'a') as char
+    }
+
     #[rustfmt::skip]
     pub fn from_usize(index: usize) -> Self {
         match index {
@@ -86,6 +90,14 @@ impl Square {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_char() {
+        assert_eq!(Square::A1.file_char(), 'a');
+        assert_eq!(Square::A5.file_char(), 'a');
+
+        assert_eq!(Square::G5.file_char(), 'g');
+    }
 
     #[test]
     fn we_can_create_a_square_from_a_file_and_rank() {
