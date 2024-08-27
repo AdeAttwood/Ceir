@@ -1,7 +1,10 @@
+use crate::bb;
 use crate::BitBoard;
 use crate::Color;
 use crate::Fen;
 use crate::Piece;
+use crate::ResolvedMovement;
+use crate::Square;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Board {
@@ -70,12 +73,24 @@ impl Board {
             }
         }
 
+        self.white_castling_kings_side = fen.white_castling_kings_side;
+        self.white_castling_queen_side = fen.white_castling_queen_side;
+        self.black_castling_kings_side = fen.black_castling_kings_side;
+        self.black_castling_queen_side = fen.black_castling_queen_side;
+
         self.turn = fen.turn;
     }
 
     pub fn from_fen_str(fen: &str) -> Result<Self, String> {
         let mut board = Self::default();
         board.load_fen(&Fen::from_str(&fen)?);
+
+        Ok(board)
+    }
+
+    pub fn from_start_position() -> Result<Self, String> {
+        let mut board = Self::default();
+        board.load_fen(&Fen::from_start_position()?);
 
         Ok(board)
     }
@@ -121,14 +136,102 @@ impl Board {
     }
 
     pub fn get_piece_at(&self, source_board: &BitBoard) -> Option<(Color, Piece)> {
-        let bitboards = vec![self.black_boards(), self.white_boards()].concat();
-        for (color, piece, target_board) in bitboards {
+        let bb = vec![self.black_boards(), self.white_boards()].concat();
+        for (color, piece, target_board) in bb {
             if source_board & target_board != 0 {
                 return Some((color, piece));
             }
         }
 
         None
+    }
+
+    fn color_board(&mut self, piece: &Piece, color: Color) -> &mut BitBoard {
+        match piece {
+            Piece::Pawn if color == Color::White => &mut self.white_pawn_board,
+            Piece::Pawn if color == Color::Black => &mut self.black_pawn_board,
+            Piece::Rook if color == Color::White => &mut self.white_rook_board,
+            Piece::Rook if color == Color::Black => &mut self.black_rook_board,
+            Piece::Bishop if color == Color::White => &mut self.white_bishop_board,
+            Piece::Bishop if color == Color::Black => &mut self.black_bishop_board,
+            Piece::Knight if color == Color::White => &mut self.white_knight_board,
+            Piece::Knight if color == Color::Black => &mut self.black_knight_board,
+            Piece::Queen if color == Color::White => &mut self.white_queen_board,
+            Piece::Queen if color == Color::Black => &mut self.black_queen_board,
+            Piece::King if color == Color::White => &mut self.white_king_board,
+            Piece::King if color == Color::Black => &mut self.black_king_board,
+            _ => unreachable!("There are only black and white pieces, what did I miss?"),
+        }
+    }
+
+    pub fn move_piece(&mut self, movement: ResolvedMovement) {
+        let board = self.color_board(&movement.piece, self.turn);
+        *board &= !bb!(movement.from);
+        *board |= bb!(movement.to);
+
+        if let Some(capture) = movement.capture {
+            let capture_board = self.color_board(&capture, self.turn.opposite());
+            *capture_board &= !bb!(movement.to);
+        }
+
+        if movement.is_white_king_castle() {
+            self.white_rook_board &= !bb!(Square::H1);
+            self.white_rook_board |= bb!(Square::F1);
+        }
+
+        if movement.is_white_queen_castle() {
+            self.white_rook_board &= !bb!(Square::A1);
+            self.white_rook_board |= bb!(Square::D1);
+        }
+
+        if movement.is_black_king_castle() {
+            self.black_rook_board &= !bb!(Square::H8);
+            self.black_rook_board |= bb!(Square::F8);
+        }
+
+        if movement.is_black_queen_castle() {
+            self.black_rook_board &= !bb!(Square::A8);
+            self.black_rook_board |= bb!(Square::D8);
+        }
+
+        if movement.piece == Piece::King {
+            match self.turn {
+                Color::White => {
+                    self.white_castling_kings_side = false;
+                    self.white_castling_queen_side = false;
+                }
+                Color::Black => {
+                    self.black_castling_kings_side = false;
+                    self.black_castling_queen_side = false;
+                }
+            }
+        }
+
+        if movement.from == Square::A1 && movement.piece == Piece::Rook {
+            self.white_castling_queen_side = false;
+        }
+
+        if movement.from == Square::H1 && movement.piece == Piece::Rook {
+            self.white_castling_kings_side = false;
+        }
+
+        if movement.from == Square::A8 && movement.piece == Piece::Rook {
+            self.black_castling_queen_side = false;
+        }
+
+        if movement.from == Square::H8 && movement.piece == Piece::Rook {
+            self.black_castling_kings_side = false;
+        }
+
+        if let Some(promotion) = movement.promotion {
+            let pawn_board = self.color_board(&Piece::Pawn, self.turn);
+            *pawn_board &= !bb!(movement.to);
+
+            let new_piece_board = self.color_board(&promotion, self.turn);
+            *new_piece_board |= bb!(movement.to);
+        }
+
+        self.turn = self.turn.opposite();
     }
 
     pub fn print(&self) {
@@ -215,5 +318,26 @@ mod tests {
 
         assert_eq!(board.black_king_board, bb!(Square::E7));
         assert_eq!(board.black_pawn_board, bb!(Square::B2) | bb!(Square::B7));
+    }
+
+    #[test]
+    fn moves_a_piece() {
+        let mut board = Board::from_start_position().unwrap();
+
+        #[rustfmt::skip]
+        assert_eq!(board.get_piece_at(&bb!(Square::E2)), Some((Color::White, Piece::Pawn)));
+        assert_eq!(board.get_piece_at(&bb!(Square::E4)), None);
+
+        board.move_piece(ResolvedMovement {
+            piece: Piece::Pawn,
+            from: Square::E2,
+            to: Square::E4,
+            capture: None,
+            promotion: None,
+        });
+
+        #[rustfmt::skip]
+        assert_eq!(board.get_piece_at(&bb!(Square::E4)), Some((Color::White, Piece::Pawn)));
+        assert_eq!(board.get_piece_at(&bb!(Square::E2)), None);
     }
 }

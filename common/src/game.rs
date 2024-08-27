@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::Board;
+use crate::{Board, ResolvedMovement};
 
 #[derive(Clone, Debug, Default)]
 pub enum GameResult {
@@ -17,4 +17,11 @@ pub struct Game {
     pub history: Vec<Board>,
     pub board: Board,
     pub result: GameResult,
+}
+
+impl Game {
+    pub fn move_piece(&mut self, movement: ResolvedMovement) {
+        self.history.push(self.board.clone());
+        self.board.move_piece(movement);
+    }
 }

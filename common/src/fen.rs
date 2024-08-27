@@ -125,6 +125,11 @@ impl Fen {
     pub fn from_str(fen: &str) -> Result<Self, String> {
         Self::new(&String::from(fen))
     }
+
+    pub fn from_start_position() -> Result<Self, String> {
+        let fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        Fen::from_str(fen_string)
+    }
 }
 
 #[cfg(test)]
