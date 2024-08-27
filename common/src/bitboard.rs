@@ -56,6 +56,12 @@ impl BitBoardable for u64 {
     }
 }
 
+/// ```
+/// use common::bb;
+/// use common::Square;
+///
+/// bb!(Square::A1);
+/// ```
 #[macro_export]
 macro_rules! bb {
     ($square:expr) => {
@@ -106,22 +112,10 @@ mod tests {
             "0000000000000000000000000000000000000000000000000000000010000000",
         );
 
-        // let mut i = 0;
-        // for rank in 1..9 {
-        //     for file in ('A'..'I').rev() {
-        //         // let index = rank << 3 ^ file;
-        //         // let square = bb!(index);
-        //         print!("{} => Square::{}{}, ", i, file, rank);
-        //         i += 1
-        //         // assert_eq!(bb_str!(bb!(square)), format!("{:064b}", 1 << i));
-        //     }
-        //     println!();
-        // }
-
-        // assert_eq!(
-        //     bb_str!(bb!(Square::from_usize(27))),
-        //     "0000000000000000000000000000000010000000000000000000000000000000",
-        // );
+        assert_eq!(
+            bb_str!(bb!(Square::from_usize(27))),
+            "0000000000000000000000000000000000001000000000000000000000000000",
+        );
     }
 
     #[test]
@@ -145,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn we_can_iterare_over_the_bits_in_the_correct_order() {
+    fn we_can_iterate_over_the_bits_in_the_correct_order() {
         let board = bb!(Square::A1) | bb!(Square::B1) | bb!(Square::C1);
         let mut itr = BitBoardIterator::new(board);
 
