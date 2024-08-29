@@ -35,6 +35,20 @@ pub enum Square {
 }
 
 impl Square {
+    /// Create a square from a string like "a1"
+    ///
+    /// ```
+    /// let s = common::Square::from_str("a1").unwrap();
+    /// assert_eq!(s, common::Square::A1);
+    /// ```
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        let mut chars = s.chars();
+        let file = chars.next().ok_or("Invalid square")?;
+        let rank = chars.next().ok_or("Invalid square")?;
+
+        Self::from_file_and_rank_str(&file.to_string(), &rank.to_string())
+    }
+
     pub fn from_file_and_rank_str(file: &str, rank: &str) -> Result<Self, String> {
         let file_usize = match file {
             "a" => 0,
@@ -124,6 +138,12 @@ mod tests {
     #[test]
     fn converts_from_a_file_and_rank_string() {
         let square = Square::from_file_and_rank_str("h", "8").unwrap();
+        assert_eq!(square, Square::H8);
+    }
+
+    #[test]
+    fn converts_from_a_str() {
+        let square = Square::from_str("h8").unwrap();
         assert_eq!(square, Square::H8);
     }
 }
