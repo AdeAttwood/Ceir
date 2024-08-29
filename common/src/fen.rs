@@ -1,5 +1,6 @@
 use crate::Color;
 use crate::Piece;
+use crate::Square;
 
 /// Forsyth–Edwards Notation (fen)
 ///
@@ -24,7 +25,10 @@ pub struct Fen {
     pub white_castling_queen_side: bool,
     pub black_castling_kings_side: bool,
     pub black_castling_queen_side: bool,
+    pub en_passant: Option<Square>,
     pub squares: Vec<Option<(Color, Piece)>>,
+    pub half_move_clock: i32,
+    pub full_move_number: i32,
 }
 
 impl Fen {
@@ -97,6 +101,9 @@ impl Fen {
         let mut fen = Fen {
             squares,
             turn,
+            en_passant: None,
+            half_move_clock: 0,
+            full_move_number: 0,
             white_castling_kings_side: false,
             white_castling_queen_side: false,
             black_castling_kings_side: false,
@@ -118,6 +125,26 @@ impl Fen {
                 }
             }
         }
+
+        fen.en_passant = match parts.next() {
+            Some("-") => None,
+            Some(square) => Some(Square::from_str(square)?),
+            None => return Err("Missing en passant square".to_string()),
+        };
+
+        fen.half_move_clock = match parts.next() {
+            Some(half_move_clock) => half_move_clock
+                .parse()
+                .map_err(|_| format!("Invalid half move clock {half_move_clock}").to_string())?,
+            None => return Err("Missing half move clock".to_string()),
+        };
+
+        fen.full_move_number = match parts.next() {
+            Some(half_move_clock) => half_move_clock
+                .parse()
+                .map_err(|_| format!("Invalid full move number {half_move_clock}").to_string())?,
+            None => return Err("Missing full move number".to_string()),
+        };
 
         Ok(fen)
     }
@@ -228,5 +255,21 @@ mod tests {
 
         // Test in a different order
         assert_castling!("QK", true, true, false, false);
+    }
+
+    #[test]
+    fn en_passant() {
+        let fen_string = "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2";
+        let fen = Fen::from_str(fen_string).unwrap();
+        assert_eq!(fen.en_passant, Some(Square::D6));
+    }
+
+    #[test]
+    fn clocks() {
+        let fen_string = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 5";
+        let fen = Fen::from_str(fen_string).unwrap();
+
+        assert_eq!(fen.half_move_clock, 4);
+        assert_eq!(fen.full_move_number, 5);
     }
 }

@@ -11,6 +11,9 @@ pub struct Board {
     /// The color that is turn currently to move
     pub turn: Color,
 
+    /// The square that can be attacked by en passant
+    pub en_passant: Option<Square>,
+
     /// A bit board for each of the white pieces
     pub white_bishop_board: BitBoard,
     pub white_king_board: BitBoard,
@@ -77,6 +80,8 @@ impl Board {
         self.white_castling_queen_side = fen.white_castling_queen_side;
         self.black_castling_kings_side = fen.black_castling_kings_side;
         self.black_castling_queen_side = fen.black_castling_queen_side;
+
+        self.en_passant = fen.en_passant;
 
         self.turn = fen.turn;
     }
