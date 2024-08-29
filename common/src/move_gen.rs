@@ -1,8 +1,6 @@
 use crate::lookup::FILE_BITBOARDS;
 use crate::lookup::RANK_BITBOARDS;
-use crate::{
-    bb, BitBoard, BitBoardIterator, BitBoardable, Board, Color, Piece, ResolvedMovement, Square,
-};
+use crate::{bb, BitBoard, BitBoardIterator, Board, Color, Piece, ResolvedMovement, Square};
 
 const NORTH: i8 = 8;
 const EAST: i8 = 1;
@@ -178,11 +176,6 @@ pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
     let bitboards = match board.turn {
         Color::Black => board.black_boards(),
         Color::White => board.white_boards(),
-    };
-
-    let available_squares = !match board.turn {
-        Color::Black => board.black_pieces(),
-        Color::White => board.white_pieces(),
     };
 
     let occupancies = board.black_pieces() | board.white_pieces();
