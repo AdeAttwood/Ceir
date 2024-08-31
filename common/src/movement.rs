@@ -1,4 +1,5 @@
 use crate::bb;
+use crate::is_move_to_check;
 use crate::pseudo_moves;
 use crate::Board;
 use crate::Piece;
@@ -33,8 +34,9 @@ impl AmbiguousMovement {
         for m in &moves {
             if let Some(file) = self.file {
                 if self.to == m.to && (self.piece == Some(m.piece) || self.piece.is_none()) {
-                    let c = m.from.file_char();
-                    if c == file {
+                    if (file == m.from.file_char() || file == m.from.rank_char())
+                        && !is_move_to_check(board, *m)
+                    {
                         let mut resolved = *m;
                         resolved.capture = self.resolve_capture(board);
                         resolved.promotion = self.promotion;
@@ -45,7 +47,7 @@ impl AmbiguousMovement {
                 continue;
             }
 
-            if self.to == m.to && self.piece == Some(m.piece) {
+            if self.to == m.to && self.piece == Some(m.piece) && !is_move_to_check(board, *m) {
                 let mut resolved = *m;
                 resolved.capture = self.resolve_capture(board);
                 resolved.promotion = self.promotion;
@@ -81,6 +83,10 @@ impl ResolvedMovement {
 
     pub fn is_black_queen_castle(&self) -> bool {
         self.piece == Piece::King && self.from == Square::E8 && self.to == Square::C8
+    }
+
+    pub fn uci(&self) -> String {
+        format!("{}{}", self.from.uci(), self.to.uci(),)
     }
 }
 

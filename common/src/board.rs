@@ -1,5 +1,6 @@
 use crate::bb;
 use crate::BitBoard;
+use crate::BitBoardable;
 use crate::Color;
 use crate::Fen;
 use crate::Piece;
@@ -174,6 +175,18 @@ impl Board {
         *board &= !bb!(movement.from);
         *board |= bb!(movement.to);
 
+        if movement.piece == Piece::Pawn && Some(movement.to) == self.en_passant {
+            if let Some(en_passant) = self.en_passant {
+                let capture_square = match self.turn {
+                    Color::White => bb!(en_passant) >> 8,
+                    Color::Black => bb!(en_passant) << 8,
+                };
+
+                let capture_board = self.color_board(&Piece::Pawn, self.turn.opposite());
+                *capture_board &= !capture_square;
+            }
+        }
+
         if let Some(capture) = movement.capture {
             let capture_board = self.color_board(&capture, self.turn.opposite());
             *capture_board &= !bb!(movement.to);
@@ -234,6 +247,24 @@ impl Board {
 
             let new_piece_board = self.color_board(&promotion, self.turn);
             *new_piece_board |= bb!(movement.to);
+        }
+
+        if movement.piece == Piece::Pawn
+            && self.turn == Color::White
+            && movement.from.rank_char() == '2'
+            && movement.to.rank_char() == '4'
+        {
+            let (file, rank) = (bb!(movement.to) >> 8).file_and_rank();
+            self.en_passant = Some(Square::from_file_and_rank(file, rank));
+        } else if movement.piece == Piece::Pawn
+            && self.turn == Color::Black
+            && movement.from.rank_char() == '7'
+            && movement.to.rank_char() == '5'
+        {
+            let (file, rank) = (bb!(movement.to) << 8).file_and_rank();
+            self.en_passant = Some(Square::from_file_and_rank(file, rank));
+        } else {
+            self.en_passant = None;
         }
 
         self.turn = self.turn.opposite();
@@ -344,5 +375,27 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(board.get_piece_at(&bb!(Square::E4)), Some((Color::White, Piece::Pawn)));
         assert_eq!(board.get_piece_at(&bb!(Square::E2)), None);
+    }
+
+    #[test]
+    fn remove_the_pawn_when_making_an_en_passant_move() {
+        let fen = "2kr1b1r/pppb2pp/4p2q/4Pp2/1P2B3/2P3P1/P3QP1P/RN3RK1 w - f6 0 15";
+        let mut board = Board::from_fen_str(fen).unwrap();
+
+        assert_eq!(board.get_piece_at(&bb!(Square::F6)), None);
+
+        let moves = crate::move_gen::pseudo_moves(&board);
+        let m = moves
+            .iter()
+            .find(|m| m.capture == Some(Piece::Pawn) && m.to == Square::F6)
+            .unwrap();
+
+        board.move_piece(*m);
+
+        assert_eq!(board.get_piece_at(&bb!(Square::F5)), None);
+        assert_eq!(
+            board.get_piece_at(&bb!(Square::F6)),
+            Some((Color::White, Piece::Pawn))
+        );
     }
 }

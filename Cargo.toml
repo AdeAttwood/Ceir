@@ -13,9 +13,7 @@ bincode = "1.3.3"
 overflow-checks = false
 
 [workspace]
-members = [
-    "common", "pgn",
-]
+members = [ "book", "cli", "common", "pgn" ]
 
 [[bin]]
 name = "book"

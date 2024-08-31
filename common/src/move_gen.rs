@@ -1,11 +1,13 @@
 use crate::lookup::FILE_BITBOARDS;
 use crate::lookup::RANK_BITBOARDS;
-use crate::{bb, BitBoard, BitBoardIterator, Board, Color, Piece, ResolvedMovement, Square};
+use crate::{
+    bb, BitBoard, BitBoardIterator, BitBoardable, Board, Color, Piece, ResolvedMovement, Square,
+};
 
 const NORTH: i8 = 8;
-const EAST: i8 = 1;
+const EAST: i8 = -1;
 const SOUTH: i8 = -8;
-const WEST: i8 = -1;
+const WEST: i8 = 1;
 const NORTH_EAST: i8 = 9;
 const NORTH_WEST: i8 = 7;
 const SOUTH_EAST: i8 = -7;
@@ -23,28 +25,20 @@ fn scan_bishop(occupancies: BitBoard, square_board: BitBoard, direction: i8) -> 
     let mut i = square_board;
 
     loop {
-        // Perform the shift
-        i = if direction > 0 {
-            i << direction
-        } else {
-            i >> -direction
+        i = match direction {
+            NORTH_EAST => (i << 7) & !FILE_BITBOARDS[0],
+            NORTH_WEST => (i << 9) & !FILE_BITBOARDS[7],
+            SOUTH_EAST => (i >> 9) & !FILE_BITBOARDS[0],
+            SOUTH_WEST => (i >> 7) & !FILE_BITBOARDS[7],
+            _ => break,
         };
 
-        // Stop if the shift goes out of bounds
+        // Stop if the shift moves the piece off the board
         if i == 0 {
             break;
         }
 
         ray_board |= i;
-
-        // Check if we are on an invalid edge, preventing wrap around
-        if (direction == NORTH_EAST && i & FILE_BITBOARDS[0] != 0)
-            || (direction == NORTH_WEST && i & FILE_BITBOARDS[7] != 0)
-            || (direction == SOUTH_WEST && i & FILE_BITBOARDS[7] != 0)
-            || (direction == SOUTH_EAST && i & FILE_BITBOARDS[0] != 0)
-        {
-            break;
-        }
 
         // Stop if we hit a blocker
         if occupancies != 0 && i & occupancies != 0 {
@@ -61,10 +55,12 @@ fn scan_rook(occupancies: BitBoard, square_board: BitBoard, direction: i8) -> Bi
 
     loop {
         // Perform the shift
-        i = if direction > 0 {
-            i << direction // Positive shift (east/north)
-        } else {
-            i >> -direction // Negative shift (west/south)
+        i = match direction {
+            EAST => (i >> 1) & !FILE_BITBOARDS[0],
+            WEST => (i << 1) & !FILE_BITBOARDS[7],
+            SOUTH => (i >> 8) & !RANK_BITBOARDS[7],
+            NORTH => (i << 8) & !RANK_BITBOARDS[0],
+            _ => break,
         };
 
         // Stop if the shift goes out of bounds
@@ -73,15 +69,6 @@ fn scan_rook(occupancies: BitBoard, square_board: BitBoard, direction: i8) -> Bi
         }
 
         ray_board |= i; // Include the current square in the ray
-
-        // Stop if we hit the edge of the board
-        if (direction == EAST && i & FILE_BITBOARDS[0] != 0)
-            || (direction == WEST && i & FILE_BITBOARDS[7] != 0)
-            || (direction == NORTH && i & RANK_BITBOARDS[7] != 0)
-            || (direction == SOUTH && i & RANK_BITBOARDS[0] != 0)
-        {
-            break;
-        }
 
         // Stop if we hit a blocker
         if occupancies != 0 && i & occupancies != 0 {
@@ -158,13 +145,13 @@ fn pawn_moves(board: &Board, piece_board: BitBoard, occupancies: BitBoard) -> Bi
     };
 
     let left_attack = match board.turn {
-        Color::Black => piece_board >> 9 & board.white_pieces() & !FILE_BITBOARDS[7],
-        Color::White => piece_board << 9 & board.black_pieces() & !FILE_BITBOARDS[0],
+        Color::Black => piece_board >> 9 & board.white_pieces() & !FILE_BITBOARDS[0],
+        Color::White => piece_board << 9 & board.black_pieces() & !FILE_BITBOARDS[7],
     };
 
     let right_attack = match board.turn {
-        Color::Black => piece_board >> 7 & board.white_pieces() & !FILE_BITBOARDS[0],
-        Color::White => piece_board << 7 & board.black_pieces() & !FILE_BITBOARDS[7],
+        Color::Black => piece_board >> 7 & board.white_pieces() & !FILE_BITBOARDS[7],
+        Color::White => piece_board << 7 & board.black_pieces() & !FILE_BITBOARDS[0],
     };
 
     one_square | two_square | left_attack | right_attack
@@ -198,8 +185,17 @@ pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
                     piece,
                     from: Square::from_usize(index),
                     to: Square::from_usize(move_index),
-                    capture: None,
                     promotion: None,
+                    capture: match board.get_piece_at(&bb!(move_index)) {
+                        Some((color, piece)) => {
+                            if color == board.turn.opposite() {
+                                Some(piece)
+                            } else {
+                                None
+                            }
+                        }
+                        None => None,
+                    },
                 });
             }
         }
@@ -244,8 +240,129 @@ pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
             promotion: None,
         });
     }
+    if let Some(square) = board.en_passant {
+        let left_attack = match board.turn {
+            Color::White => bb!(square) >> 7 & !FILE_BITBOARDS[7] & board.white_pieces(),
+            Color::Black => bb!(square) << 9 & !FILE_BITBOARDS[7] & board.black_pieces(),
+        };
+
+        if left_attack != 0 {
+            let (file, rank) = left_attack.file_and_rank();
+            output.push(ResolvedMovement {
+                piece: Piece::Pawn,
+                from: Square::from_file_and_rank(file, rank),
+                to: square,
+                capture: Some(Piece::Pawn),
+                promotion: None,
+            });
+        }
+
+        let right_attack = match board.turn {
+            Color::White => bb!(square) >> 9 & !FILE_BITBOARDS[0] & board.white_pieces(),
+            Color::Black => bb!(square) << 7 & !FILE_BITBOARDS[0] & board.black_pieces(),
+        };
+
+        if right_attack != 0 {
+            let (file, rank) = right_attack.file_and_rank();
+            output.push(ResolvedMovement {
+                piece: Piece::Pawn,
+                from: Square::from_file_and_rank(file, rank),
+                to: square,
+                capture: Some(Piece::Pawn),
+                promotion: None,
+            });
+        }
+    }
 
     output
+}
+
+pub fn is_move_to_check(board: &Board, movement: ResolvedMovement) -> bool {
+    let mut new_board = board.clone();
+    new_board.move_piece(movement);
+    new_board.turn = new_board.turn.opposite();
+    is_in_check(&new_board)
+}
+
+pub fn is_in_check(board: &Board) -> bool {
+    let mut new_board = board.clone();
+    let king_board = match new_board.turn {
+        Color::White => new_board.white_king_board,
+        Color::Black => new_board.black_king_board,
+    };
+
+    let (file, rank) = king_board.file_and_rank();
+    let king_square = Square::from_file_and_rank(file, rank);
+
+    new_board.turn = new_board.turn.opposite();
+
+    for m in pseudo_moves(&new_board) {
+        if m.to == king_square && m.capture == Some(Piece::King) {
+            return true;
+        }
+    }
+
+    false
+}
+
+#[cfg(test)]
+mod check_tests {
+    use super::*;
+
+    #[test]
+    fn is_in_check_test() {
+        // Simple in check
+        assert!(is_in_check(
+            &Board::from_fen_str("3k4/3q4/8/8/8/8/8/3K4 w - - 0 1").unwrap()
+        ));
+
+        // Is in check because it white to move
+        assert!(is_in_check(
+            &Board::from_fen_str("2k4r/1ppr3p/p3p3/8/5Q2/5n2/Pq3PPP/2R1R1K1 w - - 0 24").unwrap()
+        ));
+    }
+
+    #[test]
+    fn simple_move_to_check() {
+        let board = Board::from_fen_str("4K3/3Q4/8/8/8/8/8/4k3 w - - 0 1").unwrap();
+        let movement = ResolvedMovement {
+            piece: Piece::Queen,
+            from: Square::D7,
+            to: Square::E7,
+            capture: None,
+            promotion: None,
+        };
+
+        assert!(!is_move_to_check(&board, movement));
+    }
+
+    #[test]
+    fn pick_the_correct_rook_to_move() {
+        let board =
+            Board::from_fen_str("2kr4/1pp4p/p3pQ2/2R5/q6P/8/5PP1/3rR1K1 w - - 3 28").unwrap();
+
+        assert!(is_move_to_check(
+            &board,
+            ResolvedMovement {
+                piece: Piece::Rook,
+                from: Square::E1,
+                to: Square::E5,
+                capture: None,
+                promotion: None,
+            }
+        ));
+
+        assert!(!is_move_to_check(
+            &board,
+            ResolvedMovement {
+                piece: Piece::Rook,
+                from: Square::C5,
+                to: Square::E5,
+                capture: None,
+                promotion: None,
+            }
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -328,6 +445,51 @@ mod tests {
     }
 
     #[test]
+    fn rook_on_another_edge() {
+        assert_rook_attacks!(
+            bb!(Square::H5),
+            "",
+            concat!(
+                " . . . . . . . x ",
+                " . . . . . . . x ",
+                " . . . . . . . x ",
+                " x x x x x x x . ",
+                " . . . . . . . x ",
+                " . . . . . . . x ",
+                " . . . . . . . x ",
+                " . . . . . . . x ",
+            )
+        );
+    }
+
+    #[test]
+    fn rook_on_yet_another_edge() {
+        assert_rook_attacks!(
+            bb!(Square::E1),
+            concat!(
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . . . . . . ",
+                " . . . x . . . . ",
+            ),
+            concat!(
+                " . . . . x . . . ",
+                " . . . . x . . . ",
+                " . . . . x . . . ",
+                " . . . . x . . . ",
+                " . . . . x . . . ",
+                " . . . . x . . . ",
+                " . . . . x . . . ",
+                " . . . x . x x x ",
+            )
+        );
+    }
+
+    #[test]
     fn rook_on_the_edge() {
         assert_rook_attacks!(
             bb!(Square::H1),
@@ -395,6 +557,24 @@ mod tests {
                 " . . . . . x . . ",
                 " . . . . . . x . ",
                 " . . . . . . . x ",
+            )
+        );
+    }
+
+    #[test]
+    fn bishop_attacks_on_the_edge() {
+        assert_bishop_attacks!(
+            bb!(Square::A4),
+            "",
+            concat!(
+                " . . . . x . . . ",
+                " . . . x . . . . ",
+                " . . x . . . . . ",
+                " . x . . . . . . ",
+                " . . . . . . . . ",
+                " . x . . . . . . ",
+                " . . x . . . . . ",
+                " . . . x . . . . ",
             )
         );
     }
@@ -519,6 +699,86 @@ mod tests {
                 " . . . . . . . . ",
                 " . . . . . . . . ",
                 " . . . . . . . . ",
+            ))
+        );
+    }
+
+    macro_rules! get_moves {
+        ($board:expr) => {
+            pseudo_moves(&Board::from_fen_str($board).unwrap())
+        };
+    }
+
+    macro_rules! assert_has_move {
+        ($moves:expr, $move:expr) => {
+            assert!(
+                $moves.clone().into_iter().any(|m| m.uci() == $move),
+                "Move {} not found in moves: {:#?}",
+                $move,
+                $moves
+            );
+        };
+    }
+
+    #[test]
+    fn calculates_en_passant() {
+        let moves = get_moves!("8/8/8/8/6Pp/8/8/8 b - g3 0 16");
+        assert_has_move!(moves, "h4g3");
+    }
+
+    #[test]
+    fn calculates_en_passant_for_black() {
+        let moves = get_moves!("5b1r/1p1kp1p1/1rp1Rp2/3P4/pPPN2P1/6BP/P1N2PK1/8 b - b3 0 28");
+        assert_has_move!(moves, "a4b3");
+    }
+
+    #[test]
+    fn get_rook_moves() {
+        let moves = get_moves!("r1P5/8/P7/8/8/8/8/8 b - - 0 1");
+
+        // Captures the pawn
+        assert_has_move!(moves, "a8a6");
+
+        // Moves to the left
+        assert_has_move!(moves, "a8b8");
+    }
+
+    #[test]
+    fn white_pawn_captures() {
+        let moves = get_moves!("8/8/8/p7/1P6/8/8/8 w - - 0 1");
+        assert_has_move!(moves, "b4a5");
+        assert_has_move!(moves, "b4b5");
+        assert_eq!(moves.len(), 2);
+    }
+
+    #[test]
+    fn black_pawn_captures() {
+        let moves = get_moves!("8/8/8/1p6/P7/8/8/8 b - - 0 1");
+        assert_has_move!(moves, "b5a4");
+        assert_has_move!(moves, "b5b4");
+        assert_eq!(moves.len(), 2);
+    }
+
+    #[test]
+    fn creates_the_correct_bishop_moves() {
+        let moves = get_moves!("8/8/8/8/b7/8/8/8 b - - 0 1");
+
+        let mut target_board = 0;
+        for m in moves {
+            target_board |= bb!(m.to);
+        }
+
+        assert_eq!(
+            target_board,
+            board(concat!(
+                " . . . . x . . . ",
+                " . . . x . . . . ",
+                " . . x . . . . . ",
+                " . x . . . . . . ",
+                " . . . . . . . . ",
+                " . x . . . . . . ",
+                " . . x . . . . . ",
+                " . . . x . . . . ",
             ))
         );
     }

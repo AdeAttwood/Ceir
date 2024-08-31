@@ -11,17 +11,17 @@ pub enum GameResult {
     Draw,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Game {
     pub metadata: HashMap<String, String>,
-    pub history: Vec<Board>,
+    pub history: Vec<ResolvedMovement>,
     pub board: Board,
     pub result: GameResult,
 }
 
 impl Game {
     pub fn move_piece(&mut self, movement: ResolvedMovement) {
-        self.history.push(self.board.clone());
+        self.history.push(movement);
         self.board.move_piece(movement);
     }
 }

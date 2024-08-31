@@ -3,7 +3,6 @@ use common::Board;
 use common::Color;
 use common::Game;
 use common::GameResult;
-use common::Movement;
 use common::Piece;
 use common::Square;
 use pest::{iterators::Pair, Parser};
@@ -53,7 +52,6 @@ fn parse_san_move(pair: Pair<Rule>) -> Result<AmbiguousMovement, String> {
                 });
             }
             Rule::disambiguous_move => {
-                // disambiguous_move = { pice ~ (file | rank) ~ file ~ rank }
                 let mut item_itr = item.into_inner();
                 let piece_str = item_itr.next().unwrap().as_str();
                 let file_or_rank = item_itr.next().unwrap();
@@ -112,6 +110,27 @@ fn parse_san(board: &Board, pair: Pair<Rule>) -> Result<AmbiguousMovement, Strin
                     }
                 }
             }
+            Rule::queens_side_castle => {
+                if board.turn == Color::White {
+                    movement = AmbiguousMovement {
+                        file: None,
+                        piece: Some(Piece::King),
+                        from: Some(Square::E1),
+                        to: Square::C1,
+                        capture: None,
+                        promotion: None,
+                    }
+                } else {
+                    movement = AmbiguousMovement {
+                        file: None,
+                        piece: Some(Piece::King),
+                        from: Some(Square::E8),
+                        to: Square::C8,
+                        capture: None,
+                        promotion: None,
+                    }
+                }
+            }
             Rule::capture => {
                 let mut item_itr = item.into_inner();
                 let file_or_piece = item_itr.next().unwrap();
@@ -130,7 +149,7 @@ fn parse_san(board: &Board, pair: Pair<Rule>) -> Result<AmbiguousMovement, Strin
                         capture: None,
                         promotion: None,
                     },
-                    // TODO(AdeAttwood): Find a way to resolve the piece that is on this file.
+
                     Rule::file => AmbiguousMovement {
                         file: Some(file_or_piece.as_str().chars().next().unwrap()),
                         piece: Some(Piece::Pawn),
@@ -140,6 +159,26 @@ fn parse_san(board: &Board, pair: Pair<Rule>) -> Result<AmbiguousMovement, Strin
                         promotion: None,
                     },
                     _ => unreachable!("Unexpected capture expected a file or a piece"),
+                };
+            }
+            Rule::capture_with_pice => {
+                let mut item_itr = item.into_inner();
+                let pice = item_itr.next().unwrap();
+                let first_file = item_itr.next().unwrap();
+
+                let _unused_capture_marker = item_itr.next();
+
+                let file = item_itr.next().unwrap().as_str();
+                let rank = item_itr.next().unwrap().as_str();
+                let to_square = Square::from_file_and_rank_str(file, rank)?;
+
+                movement = AmbiguousMovement {
+                    file: Some(first_file.as_str().chars().next().unwrap()),
+                    piece: Some(Piece::from_str(pice.as_str()).unwrap()),
+                    from: None,
+                    to: to_square,
+                    capture: None,
+                    promotion: None,
                 };
             }
             Rule::promotion => {
@@ -156,23 +195,29 @@ fn parse_san(board: &Board, pair: Pair<Rule>) -> Result<AmbiguousMovement, Strin
     Ok(movement)
 }
 
-fn parse_move(board: &Board, pair: Pair<Rule>) -> Result<(i32, Movement), String> {
+fn parse_move(game: &mut Game, pair: Pair<Rule>) -> Result<(), String> {
     if pair.as_rule() != Rule::pgn_move {
         return Err("Unable to parse rule, its not a move".to_string());
     }
 
-    let mut number: i32 = 0;
     for item in pair.into_inner() {
         match item.as_rule() {
-            Rule::move_number => {
-                number = match item.as_str().parse::<i32>() {
-                    Ok(number) => number,
-                    Err(e) => panic!("Invalid move number: {}", e),
-                };
-            }
+            Rule::move_number => {}
             Rule::single_san => {
-                let movement = parse_san(board, item.into_inner().next().unwrap())?;
-                return Ok((number, Movement::Ambiguous(movement)));
+                let movement = parse_san(&game.board, item.into_inner().next().unwrap())?;
+                game.move_piece(movement.resolve(&game.board)?);
+                return Ok(());
+            }
+            Rule::double_san => {
+                let mut itr = item.into_inner();
+
+                let left = parse_san(&game.board, itr.next().unwrap())?;
+                game.move_piece(left.resolve(&game.board)?);
+
+                let right = parse_san(&game.board, itr.next().unwrap())?;
+                game.move_piece(right.resolve(&game.board)?);
+
+                return Ok(());
             }
             _ => unreachable!("Parse error, invalid move item {:?}", item.as_rule()),
         }
@@ -188,6 +233,7 @@ fn parse_result(pair: Pair<Rule>) -> Result<GameResult, String> {
 
     let result_rule = pair.into_inner().next().unwrap().as_rule();
     match result_rule {
+        Rule::in_progress => Ok(GameResult::InProgress),
         Rule::white_win => Ok(GameResult::WhiteWin),
         Rule::black_win => Ok(GameResult::BlackWin),
         Rule::draw => Ok(GameResult::Draw),
@@ -220,15 +266,7 @@ fn parse_game(pair: Pair<Rule>) -> Result<Game, String> {
 
                 game.metadata.insert(key.to_string(), value.to_string());
             }
-            Rule::pgn_move => {
-                let (_ /* index */, movement) = parse_move(&game.board, item)?;
-                let resolved_move = match movement {
-                    Movement::Ambiguous(ambiguous) => ambiguous.resolve(&game.board)?,
-                    Movement::Resolved(resolved) => resolved,
-                };
-
-                game.move_piece(resolved_move);
-            }
+            Rule::pgn_move => parse_move(&mut game, item)?,
             Rule::result => game.result = parse_result(item)?,
             _ => unreachable!("Unexpected game item: {:?}", item.as_rule()),
         }
@@ -238,24 +276,25 @@ fn parse_game(pair: Pair<Rule>) -> Result<Game, String> {
 }
 
 pub fn parse(string: &String) -> Result<Vec<Game>, String> {
-    let parsed = match PGNParser::parse(Rule::game, string) {
-        Ok(parsed) => parsed,
+    let parsed = match PGNParser::parse(Rule::root, string) {
+        Ok(mut parsed) => parsed.next().unwrap(),
         Err(e) => return Err(format!("{}", e)),
     };
 
     let mut games: Vec<Game> = Vec::new();
 
-    for pair in parsed {
+    for pair in parsed.into_inner() {
         match pair.as_rule() {
             Rule::game => match parse_game(pair) {
                 Ok(game) => games.push(game),
                 Err(err) => return Err(err),
             },
+            Rule::EOI => return Ok(games),
             _ => unreachable!("Unexpected rule: {:?}", pair.as_rule()),
         }
     }
 
-    Ok(games)
+    unreachable!("Expected EOI");
 }
 
 #[cfg(test)]
@@ -263,12 +302,21 @@ mod tests {
     use super::parse;
 
     #[test]
-    fn it_works() {
-        let input =
-            std::fs::read_to_string(format!("{}/data/first.pgn", env!("CARGO_MANIFEST_DIR")))
-                .unwrap();
+    fn loads_all_the_files() {
+        let files = vec![
+            "data/first.pgn",
+            "data/second.pgn",
+            "data/third.pgn",
+            "data/fourth.pgn",
+            "data/fifth.pgn",
+            "data/sixth.pgn",
+        ];
 
-        let games = parse(&input).unwrap();
-        assert_eq!(games.len(), 1);
+        for file in files {
+            let file_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), file);
+            let input = std::fs::read_to_string(&file_path).unwrap();
+            let games = parse(&input).unwrap();
+            assert!(games.len() > 0);
+        }
     }
 }
