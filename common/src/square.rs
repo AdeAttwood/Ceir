@@ -85,6 +85,14 @@ impl Square {
         (7 - (*self as usize & 7) as u8 + b'a') as char
     }
 
+    pub fn rank_char(&self) -> char {
+        ((*self as usize >> 3) as u8 + b'1') as char
+    }
+
+    pub fn uci(&self) -> String {
+        format!("{}{}", self.file_char(), self.rank_char())
+    }
+
     #[rustfmt::skip]
     pub fn from_usize(index: usize) -> Self {
         match index {

@@ -1,4 +1,4 @@
-WHITESPACE = _{ (NEWLINE | " ") }
+WHITESPACE = _{ (NEWLINE | " " | "\r\n") }
 
 content              =  { (!PEEK ~ (WHITESPACE | ANY))* }
 double_quoted_string = ${ PUSH("\"") ~ content ~ POP }
@@ -12,12 +12,13 @@ capture_marker     = { "x" }
 kings_side_castle  = { "O-O" }
 queens_side_castle = { "O-O-O" }
 checkmate          = { "#" }
-promotion          = { "=" ~ word }
+promotion          = { "=" ~ pice }
 
-draw      = { "1/2-1/2" }
-white_win = { "1-0" }
-black_win = { "0-1" }
-result    = { draw | white_win | black_win }
+in_progress = { "*" }
+draw        = { "1/2-1/2" }
+white_win   = { "1-0" | "1-0" }
+black_win   = { "0-1" }
+result      = {  white_win | draw | black_win | in_progress }
 
 // (7. Nd5 d6 8. Bg5 f6 9. Bh4 Nce5 10. Nxe5 dxe5 11. h3 c6)
 
@@ -27,17 +28,13 @@ pice = {
   | "R"
   | "B"
   | "N"
-  | "k"
-  | "q"
-  | "r"
-  | "b"
-  | "n"
 }
 
 file   = { 'a'..'h' }
 rank   = { '1'..'8' }
 
-capture  = { (pice | file) ~ capture_marker ~ file ~ rank }
+capture = { (pice | file) ~ capture_marker ~ file ~ rank }
+capture_with_pice = { pice ~ (file | rank) ~ capture_marker ~ file ~ rank }
 pawn_move = { file ~ rank }
 pice_move = { pice ~ file ~ rank }
 file_or_rank = { file | rank }
@@ -46,7 +43,7 @@ san_move = { disambiguous_move | pice_move | pawn_move }
 
 side_line = { "(" ~ pgn_move* ~ ")" }
 
-san = { (kings_side_castle | queens_side_castle | capture | san_move) ~ promotion? ~ suffix? }
+san = { (queens_side_castle | kings_side_castle | capture | capture_with_pice | san_move) ~ promotion? ~ suffix? }
 
 single_san = { san }
 double_san = { san ~ san }
@@ -58,4 +55,4 @@ pgn_move    =  { move_number ~ move_dot ~ (double_san | single_san) ~ comment*? 
 
 game = { meta* ~ pgn_move* ~ result }
 
-root = { game* }
+root = { game* ~ EOI }
