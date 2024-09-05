@@ -1,3 +1,4 @@
+use crate::lookup;
 use crate::lookup::FILE_BITBOARDS;
 use crate::lookup::RANK_BITBOARDS;
 use crate::{
@@ -133,6 +134,20 @@ fn king_attacks(bb: BitBoard) -> BitBoard {
         | (bb << 7 & !FILE_BITBOARDS[0])
 }
 
+fn pawn_attacks(board: &Board, piece_board: BitBoard) -> BitBoard {
+    let left_attack = match board.turn {
+        Color::Black => piece_board >> 9 & board.white_pieces() & !FILE_BITBOARDS[0],
+        Color::White => piece_board << 9 & board.black_pieces() & !FILE_BITBOARDS[7],
+    };
+
+    let right_attack = match board.turn {
+        Color::Black => piece_board >> 7 & board.white_pieces() & !FILE_BITBOARDS[7],
+        Color::White => piece_board << 7 & board.black_pieces() & !FILE_BITBOARDS[0],
+    };
+
+    left_attack | right_attack
+}
+
 fn pawn_moves(board: &Board, piece_board: BitBoard, occupancies: BitBoard) -> BitBoard {
     let one_square = match board.turn {
         Color::Black => piece_board >> 8 & !occupancies,
@@ -144,17 +159,49 @@ fn pawn_moves(board: &Board, piece_board: BitBoard, occupancies: BitBoard) -> Bi
         Color::White => one_square << 8 & !occupancies & RANK_BITBOARDS[3],
     };
 
-    let left_attack = match board.turn {
-        Color::Black => piece_board >> 9 & board.white_pieces() & !FILE_BITBOARDS[0],
-        Color::White => piece_board << 9 & board.black_pieces() & !FILE_BITBOARDS[7],
+    one_square | two_square | pawn_attacks(board, piece_board)
+}
+
+pub fn attacked_squares(board: &Board, color: &Color) -> BitBoard {
+    let mut output = 0;
+
+    let bitboards = match color {
+        Color::Black => board.black_boards(),
+        Color::White => board.white_boards(),
     };
 
-    let right_attack = match board.turn {
-        Color::Black => piece_board >> 7 & board.white_pieces() & !FILE_BITBOARDS[7],
-        Color::White => piece_board << 7 & board.black_pieces() & !FILE_BITBOARDS[0],
+    let my_pieces = match color {
+        Color::Black => board.black_pieces(),
+        Color::White => board.white_pieces(),
     };
 
-    one_square | two_square | left_attack | right_attack
+    let occupancies = board.black_pieces() | board.white_pieces();
+
+    for (_, piece, bb) in bitboards {
+        let mut itr = BitBoardIterator::new(bb);
+        while let Some(index) = itr.next() {
+            match piece {
+                Piece::Knight => output |= knight_attacks(bb!(index)) & !my_pieces,
+                Piece::King => output |= king_attacks(bb!(index)) & !my_pieces,
+                Piece::Bishop => output |= bishop_attacks(bb!(index), occupancies) & !my_pieces,
+                Piece::Queen => output |= queen_attacks(bb!(index), occupancies) & !my_pieces,
+                Piece::Rook => output |= rook_attacks(bb!(index), occupancies) & !my_pieces,
+                Piece::Pawn => {
+                    output |= match color {
+                        Color::Black => bb!(index) >> 9 & !FILE_BITBOARDS[0],
+                        Color::White => bb!(index) << 9 & !FILE_BITBOARDS[7],
+                    };
+
+                    output |= match color {
+                        Color::Black => bb!(index) >> 7 & !FILE_BITBOARDS[7],
+                        Color::White => bb!(index) << 7 & !FILE_BITBOARDS[0],
+                    };
+                }
+            };
+        }
+    }
+
+    output
 }
 
 pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
@@ -206,45 +253,6 @@ pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
         }
     }
 
-    if board.turn == Color::White && board.white_castling_kings_side {
-        output.push(ResolvedMovement {
-            piece: Piece::King,
-            from: Square::E1,
-            to: Square::G1,
-            capture: None,
-            promotion: None,
-        });
-    }
-
-    if board.turn == Color::White && board.white_castling_queen_side {
-        output.push(ResolvedMovement {
-            piece: Piece::King,
-            from: Square::E1,
-            to: Square::C1,
-            capture: None,
-            promotion: None,
-        });
-    }
-
-    if board.turn == Color::Black && board.black_castling_kings_side {
-        output.push(ResolvedMovement {
-            piece: Piece::King,
-            from: Square::E8,
-            to: Square::G8,
-            capture: None,
-            promotion: None,
-        });
-    }
-
-    if board.turn == Color::Black && board.black_castling_queen_side {
-        output.push(ResolvedMovement {
-            piece: Piece::King,
-            from: Square::E8,
-            to: Square::C8,
-            capture: None,
-            promotion: None,
-        });
-    }
     if let Some(square) = board.en_passant {
         let left_attack = match board.turn {
             Color::White => bb!(square) >> 7 & !FILE_BITBOARDS[7] & board.white_pieces(),
@@ -282,32 +290,85 @@ pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
     output
 }
 
+pub fn castle_moves(board: &Board, &attackers: &BitBoard) -> Vec<ResolvedMovement> {
+    let mut output = Vec::new();
+
+    let my_pieces = match board.turn {
+        Color::Black => board.black_pieces(),
+        Color::White => board.white_pieces(),
+    };
+
+    if board.turn == Color::White
+        && lookup::CASTLE_WHITE_KING_SIDE & (my_pieces | attackers) == 0
+        && board.white_castling_kings_side
+    {
+        output.push(ResolvedMovement {
+            piece: Piece::King,
+            from: Square::E1,
+            to: Square::G1,
+            capture: None,
+            promotion: None,
+        });
+    }
+
+    if board.turn == Color::White
+        && lookup::CASTLE_WHITE_QUEEN_SIDE & (my_pieces | attackers) == 0
+        && board.white_castling_queen_side
+    {
+        output.push(ResolvedMovement {
+            piece: Piece::King,
+            from: Square::E1,
+            to: Square::C1,
+            capture: None,
+            promotion: None,
+        });
+    }
+
+    if board.turn == Color::Black
+        && lookup::CASTLE_BLACK_KING_SIDE & (my_pieces | attackers) == 0
+        && board.black_castling_kings_side
+    {
+        output.push(ResolvedMovement {
+            piece: Piece::King,
+            from: Square::E8,
+            to: Square::G8,
+            capture: None,
+            promotion: None,
+        });
+    }
+
+    if board.turn == Color::Black
+        && lookup::CASTLE_BLACK_QUEEN_SIDE & (my_pieces | attackers) == 0
+        && board.black_castling_queen_side
+    {
+        output.push(ResolvedMovement {
+            piece: Piece::King,
+            from: Square::E8,
+            to: Square::C8,
+            capture: None,
+            promotion: None,
+        });
+    }
+
+    output
+}
+
 pub fn is_move_to_check(board: &Board, movement: ResolvedMovement) -> bool {
     let mut new_board = board.clone();
     new_board.move_piece(movement);
     new_board.turn = new_board.turn.opposite();
-    is_in_check(&new_board)
+
+    let attackers = attacked_squares(&new_board, &new_board.turn.opposite());
+    is_in_check(&new_board, &attackers)
 }
 
-pub fn is_in_check(board: &Board) -> bool {
-    let mut new_board = board.clone();
-    let king_board = match new_board.turn {
-        Color::White => new_board.white_king_board,
-        Color::Black => new_board.black_king_board,
+pub fn is_in_check(board: &Board, &attackers: &BitBoard) -> bool {
+    let king = match board.turn {
+        Color::White => board.white_king_board,
+        Color::Black => board.black_king_board,
     };
 
-    let (file, rank) = king_board.file_and_rank();
-    let king_square = Square::from_file_and_rank(file, rank);
-
-    new_board.turn = new_board.turn.opposite();
-
-    for m in pseudo_moves(&new_board) {
-        if m.to == king_square && m.capture == Some(Piece::King) {
-            return true;
-        }
-    }
-
-    false
+    attackers & king != 0
 }
 
 #[cfg(test)]
@@ -316,15 +377,20 @@ mod check_tests {
 
     #[test]
     fn is_in_check_test() {
-        // Simple in check
-        assert!(is_in_check(
-            &Board::from_fen_str("3k4/3q4/8/8/8/8/8/3K4 w - - 0 1").unwrap()
-        ));
+        let fens = vec![
+            // Simple in check
+            "3k4/3q4/8/8/8/8/8/3K4 w - - 0 1",
+            // Is in check because it white to move
+            "2k4r/1ppr3p/p3p3/8/5Q2/5n2/Pq3PPP/2R1R1K1 w - - 0 24",
+        ];
 
-        // Is in check because it white to move
-        assert!(is_in_check(
-            &Board::from_fen_str("2k4r/1ppr3p/p3p3/8/5Q2/5n2/Pq3PPP/2R1R1K1 w - - 0 24").unwrap()
-        ));
+        for fen in fens {
+            let board = Board::from_fen_str(fen).unwrap();
+            assert!(is_in_check(
+                &board,
+                &attacked_squares(&board, &board.turn.opposite())
+            ));
+        }
     }
 
     #[test]
@@ -410,7 +476,6 @@ mod tests {
         assert_eq!(
             scan_rook(bb!(0), bb!(Square::D3), SOUTH),
             board(concat!(
-                " . . . . . . . . ",
                 " . . . . . . . . ",
                 " . . . . . . . . ",
                 " . . . . . . . . ",
@@ -709,9 +774,14 @@ mod tests {
     }
 
     macro_rules! get_moves {
-        ($board:expr) => {
-            pseudo_moves(&Board::from_fen_str($board).unwrap())
-        };
+        ($board:expr) => {{
+            let board = Board::from_fen_str($board).unwrap();
+            vec![
+                pseudo_moves(&board),
+                castle_moves(&board, &attacked_squares(&board, &board.turn.opposite())),
+            ]
+            .concat()
+        }};
     }
 
     macro_rules! assert_has_move {
@@ -782,6 +852,17 @@ mod tests {
         assert_has_move!(moves, "b5a4");
         assert_has_move!(moves, "b5b4");
         assert_eq!(moves.len(), 2);
+    }
+
+    #[test]
+    fn will_not_add_a_castle_move_when_there_is_a_blocker() {
+        let moves =
+            get_moves!("r2qkbnr/ppp2ppp/2np4/1B2p3/2b1P3/P4N2/1PPP1PPP/RNBQK2R w KQkq - 1 6");
+        assert_has_no_move!(moves, "e1g1");
+
+        let moves =
+            get_moves!("r2qkbnr/ppp3pp/2npbp2/1B2p3/4P3/P4N2/1PPP1PPP/RNBQK2R w KQkq - 0 6");
+        assert_has_move!(moves, "e1g1");
     }
 
     #[test]

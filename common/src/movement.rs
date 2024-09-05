@@ -1,4 +1,6 @@
+use crate::attacked_squares;
 use crate::bb;
+use crate::castle_moves;
 use crate::is_move_to_check;
 use crate::pseudo_moves;
 use crate::Board;
@@ -29,7 +31,11 @@ impl AmbiguousMovement {
     }
 
     pub fn resolve(&self, board: &Board) -> Result<ResolvedMovement, String> {
-        let moves = pseudo_moves(&board);
+        let moves = vec![
+            pseudo_moves(&board),
+            castle_moves(board, &attacked_squares(board, &board.turn.opposite())),
+        ]
+        .concat();
 
         for m in &moves {
             if let Some(file) = self.file {
