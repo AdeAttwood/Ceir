@@ -99,3 +99,8 @@ pub const DIAGONAL_BIT_BOARDS: [BitBoard; 15] = [
 
 pub const EDGES: BitBoard =
     RANK_BITBOARDS[0] | RANK_BITBOARDS[7] | FILE_BITBOARDS[0] | FILE_BITBOARDS[7];
+
+pub const CASTLE_WHITE_KING_SIDE: BitBoard = bb!(G1) | bb!(F1);
+pub const CASTLE_WHITE_QUEEN_SIDE: BitBoard = bb!(D1) | bb!(C1);
+pub const CASTLE_BLACK_KING_SIDE: BitBoard = bb!(G8) | bb!(F8);
+pub const CASTLE_BLACK_QUEEN_SIDE: BitBoard = bb!(D8) | bb!(C8);
