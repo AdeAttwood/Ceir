@@ -165,17 +165,22 @@ pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
         Color::White => board.white_boards(),
     };
 
+    let my_pieces = match board.turn {
+        Color::Black => board.black_pieces(),
+        Color::White => board.white_pieces(),
+    };
+
     let occupancies = board.black_pieces() | board.white_pieces();
 
     for (_, piece, bb) in bitboards {
         let mut itr = BitBoardIterator::new(bb);
         while let Some(index) = itr.next() {
             let move_board = match piece {
-                Piece::Knight => knight_attacks(bb!(index)),
-                Piece::King => king_attacks(bb!(index)),
-                Piece::Bishop => bishop_attacks(bb!(index), occupancies),
-                Piece::Queen => queen_attacks(bb!(index), occupancies),
-                Piece::Rook => rook_attacks(bb!(index), occupancies),
+                Piece::Knight => knight_attacks(bb!(index)) & !my_pieces,
+                Piece::King => king_attacks(bb!(index)) & !my_pieces,
+                Piece::Bishop => bishop_attacks(bb!(index), occupancies) & !my_pieces,
+                Piece::Queen => queen_attacks(bb!(index), occupancies) & !my_pieces,
+                Piece::Rook => rook_attacks(bb!(index), occupancies) & !my_pieces,
                 Piece::Pawn => pawn_moves(board, bb!(index), occupancies),
             };
 
@@ -718,6 +723,26 @@ mod tests {
                 $moves
             );
         };
+    }
+
+    macro_rules! assert_has_no_move {
+        ($moves:expr, $move:expr) => {
+            assert!(
+                !$moves.clone().into_iter().any(|m| m.uci() == $move),
+                "Move {} found in moves: {:#?}",
+                $move,
+                $moves
+            );
+        };
+    }
+
+    #[test]
+    fn start_position() {
+        let moves = get_moves!("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        // Queen can move into its own pawn
+        assert_has_no_move!(moves, "d1d2");
+        // Can make a pawn move
+        assert_has_move!(moves, "d2d4");
     }
 
     #[test]
