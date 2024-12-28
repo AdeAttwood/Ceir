@@ -31,23 +31,23 @@ impl AmbiguousMovement {
     }
 
     pub fn resolve(&self, board: &Board) -> Result<ResolvedMovement, String> {
-        let moves = vec![
-            pseudo_moves(&board),
+        let moves = [
+            pseudo_moves(board),
             castle_moves(board, &attacked_squares(board, &board.turn.opposite())),
         ]
         .concat();
 
         for m in &moves {
             if let Some(file) = self.file {
-                if self.to == m.to && (self.piece == Some(m.piece) || self.piece.is_none()) {
-                    if (file == m.from.file_char() || file == m.from.rank_char())
-                        && !is_move_to_check(board, *m)
-                    {
-                        let mut resolved = *m;
-                        resolved.capture = self.resolve_capture(board);
-                        resolved.promotion = self.promotion;
-                        return Ok(resolved);
-                    }
+                if self.to == m.to
+                    && (self.piece == Some(m.piece) || self.piece.is_none())
+                    && (file == m.from.file_char() || file == m.from.rank_char())
+                    && !is_move_to_check(board, *m)
+                {
+                    let mut resolved = *m;
+                    resolved.capture = self.resolve_capture(board);
+                    resolved.promotion = self.promotion;
+                    return Ok(resolved);
                 }
 
                 continue;
@@ -92,7 +92,7 @@ impl ResolvedMovement {
     }
 
     pub fn uci(&self) -> String {
-        format!("{}{}", self.from.uci(), self.to.uci(),)
+        format!("{}{}", self.from.uci(), self.to.uci())
     }
 }
 
