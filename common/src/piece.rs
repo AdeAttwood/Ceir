@@ -27,4 +27,15 @@ impl Piece {
             _ => None,
         }
     }
+
+    pub fn to_lower(&self) -> char {
+        match self {
+            Self::King => 'k',
+            Self::Rook => 'r',
+            Self::Pawn => 'p',
+            Self::Queen => 'q',
+            Self::Bishop => 'b',
+            Self::Knight => 'n',
+        }
+    }
 }

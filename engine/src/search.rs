@@ -125,10 +125,12 @@ impl<'a, T: UciWriter + ?Sized> Search<'a, T> {
             }
         }
 
+        let mated_value = -MATE_SCORE + (depth as i32);
+
         let entry = TTEntry {
             seen: 1,
             depth,
-            value: best_value,
+            value: if !moved { mated_value } else { best_value },
             movement: best_move,
             bound: if best_value <= alpha {
                 Bound::UpperBound
@@ -142,10 +144,10 @@ impl<'a, T: UciWriter + ?Sized> Search<'a, T> {
         self.transposition_table.store(board.hash().unwrap(), entry);
 
         if !moved {
-            -MATE_SCORE - (depth as i32)
-        } else {
-            alpha
+            return mated_value;
         }
+
+        alpha
     }
 
     fn quiesce(&mut self, board: &Board, mut alpha: i32, beta: i32) -> i32 {

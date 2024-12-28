@@ -7,6 +7,12 @@ use crate::Board;
 use crate::Piece;
 use crate::Square;
 
+#[derive(Debug, Copy, Clone)]
+pub enum Movement {
+    Ambiguous(AmbiguousMovement),
+    Resolved(ResolvedMovement),
+}
+
 #[derive(Debug, Copy, Default, Clone)]
 pub struct AmbiguousMovement {
     pub file: Option<char>,
@@ -92,12 +98,15 @@ impl ResolvedMovement {
     }
 
     pub fn uci(&self) -> String {
-        format!("{}{}", self.from.uci(), self.to.uci())
+        if let Some(promotion) = self.promotion {
+            format!(
+                "{}{}{}",
+                self.from.uci(),
+                self.to.uci(),
+                promotion.to_lower()
+            )
+        } else {
+            format!("{}{}", self.from.uci(), self.to.uci())
+        }
     }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum Movement {
-    Ambiguous(AmbiguousMovement),
-    Resolved(ResolvedMovement),
 }
