@@ -1,4 +1,5 @@
 use crate::bb;
+use crate::hasher;
 use crate::BitBoard;
 use crate::BitBoardable;
 use crate::Color;
@@ -319,6 +320,10 @@ impl Board {
 
         println!();
         println!("Its {} to move", self.turn);
+    }
+
+    pub fn hash(&self) -> Result<u64, String> {
+        hasher::hash_board(self)
     }
 }
 

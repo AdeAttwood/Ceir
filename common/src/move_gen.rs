@@ -190,12 +190,12 @@ pub fn attacked_squares(board: &Board, color: &Color) -> BitBoard {
                     output |= match color {
                         Color::Black => bb!(index) >> 9 & !FILE_BITBOARDS[0],
                         Color::White => bb!(index) << 9 & !FILE_BITBOARDS[7],
-                    };
+                    } & !my_pieces;
 
                     output |= match color {
                         Color::Black => bb!(index) >> 7 & !FILE_BITBOARDS[7],
                         Color::White => bb!(index) << 7 & !FILE_BITBOARDS[0],
-                    };
+                    } & !my_pieces;
                 }
             };
         }

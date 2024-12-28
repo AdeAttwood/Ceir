@@ -1,9 +1,9 @@
-use common::bb;
-use common::Board;
-use common::Color;
-use common::Piece;
+use crate::bb;
+use crate::Board;
+use crate::Color;
+use crate::Piece;
 
-use common::BitBoardable;
+use crate::BitBoardable;
 
 /// Zobrist hashing function
 pub fn hash_board(board: &Board) -> Result<u64, String> {
@@ -62,7 +62,7 @@ pub fn hash_board(board: &Board) -> Result<u64, String> {
 
 #[cfg(test)]
 mod tests {
-    use common::Board;
+    use crate::Board;
 
     #[test]
     fn hashes_a_board() {

@@ -1,5 +1,7 @@
 // All the common code for crating chess programmes.
 
+pub mod random;
+
 mod bitboard;
 pub use crate::bitboard::*;
 
@@ -29,3 +31,6 @@ pub use crate::fen::*;
 
 mod board;
 pub use crate::board::*;
+
+mod hasher;
+pub use crate::hasher::*;
