@@ -143,8 +143,6 @@ mod tests {
 
     #[test]
     fn it_indexes_the_array_correctly() {
-        let index = bb_index!(Square::C4);
-
         assert_eq!(0, PAWN_SCORE[bb_index!(Square::C4)]);
         assert_eq!(20, PAWN_SCORE[bb_index!(Square::D4)]);
         assert_eq!(20, PAWN_SCORE[bb_index!(Square::E4)]);
