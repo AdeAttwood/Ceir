@@ -1,4 +1,6 @@
-use crate::random_move_search;
+use crate::evaluation::evaluate;
+use crate::search::Search;
+use crate::transposition_table::TranspositionTable;
 use crate::uci_command::{GoOptions, PositionOptions, UciCommand};
 use common::bb;
 use common::Board;
@@ -26,12 +28,14 @@ impl UciWriter for UciOutputWriter {
 
 pub struct Uci {
     board: Board,
+    transposition_table: TranspositionTable,
 }
 
 impl Uci {
     pub fn new() -> Self {
         Self {
             board: Board::from_start_position().unwrap(),
+            transposition_table: TranspositionTable::new(),
         }
     }
 
@@ -48,7 +52,7 @@ impl Uci {
             UciCommand::Uci => self.uci(writer),
             UciCommand::NewGame => self.board = Board::from_start_position().unwrap(),
             UciCommand::IsReady => writer.writeln("readyok"),
-            UciCommand::Print => self.board.print(),
+            UciCommand::Print => self.print(writer),
             UciCommand::Stop => std::process::exit(0),
             UciCommand::Position(options) => self.position(writer, &options),
             UciCommand::Go(options) => self.go(writer, &options),
@@ -127,20 +131,28 @@ impl Uci {
         }
     }
 
-    fn go(&self, writer: &mut dyn UciWriter, options: &GoOptions) {
-        random_move_search::search(&self.board, writer);
+    fn go(&mut self, writer: &mut dyn UciWriter, options: &GoOptions) {
+        let mut search = Search::new(
+            writer,
+            &mut self.transposition_table,
+            self.board,
+            options.depth as usize,
+        );
+        search.search();
 
-        // go wtime 60000 btime 60000 movestogo 40 depth 5
-        // let mut search = Search::new(options.depth);
-        //
-        // let mut board = self.board.clone();
-        // search.search(&mut board, writer);
+        self.transposition_table.clean();
     }
 
     fn uci(&self, writer: &mut dyn UciWriter) {
         writer.writeln("id name Ceir Development");
         writer.writeln("id author Ade Attwood");
         writer.writeln("uciok");
+    }
+
+    fn print(&self, writer: &mut dyn UciWriter) {
+        self.board.print();
+        let eval = evaluate(&self.board);
+        writer.writeln(&format!("Eval: {eval}"))
     }
 }
 

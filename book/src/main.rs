@@ -6,9 +6,6 @@ use cli::{deindent, ArgBuilder};
 use std::collections::HashMap;
 use std::io::{BufReader, Read};
 
-mod hasher;
-mod random;
-
 #[derive(Debug, Clone)]
 pub struct PolyglotEntry {
     pub mv: u16,
@@ -46,8 +43,8 @@ impl PolyglotEntry {
     }
 
     pub fn ambiguous_move(&self) -> AmbiguousMovement {
-        let from = Square::from_usize((self.mv >> 6 & random::SQ_MASK) as usize);
-        let to = Square::from_usize((self.mv & random::SQ_MASK) as usize);
+        let from = Square::from_usize((self.mv >> 6 & common::random::SQ_MASK) as usize);
+        let to = Square::from_usize((self.mv & common::random::SQ_MASK) as usize);
         let promotion = match self.mv >> 12 {
             0 => None,
             1 => Some(Piece::Knight),
@@ -120,7 +117,7 @@ impl PolyglotBook {
         for game in games {
             let mut board = Board::from_start_position().unwrap();
             for item in game.history {
-                let key = hasher::hash_board(&board)?;
+                let key = board.hash().unwrap();
                 let mut entry = PolyglotEntry::from_move(&item);
 
                 match game.result {
@@ -200,7 +197,7 @@ fn main() {
     let mut game = Game::default();
     game.board = Board::from_start_position().unwrap();
 
-    let hash = hasher::hash_board(&game.board).unwrap();
+    let hash = game.board.hash().unwrap();
     if let Some(entries) = book.entries.get(&hash) {
         for entry in entries {
             let movement = entry.ambiguous_move();
