@@ -1,7 +1,7 @@
 mod evaluation;
 mod move_sort;
-mod transposition_table;
 mod search;
+mod transposition_table;
 mod uci;
 mod uci_command;
 
