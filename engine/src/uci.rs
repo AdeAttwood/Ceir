@@ -78,7 +78,7 @@ impl Uci {
 
         for m in &options.moves {
             let s = m.as_str();
-            if s.len() != 4 {
+            if s.len() != 4 && s.len() != 5 {
                 writer.writeln(&format!("Invalid move '{s}'"));
                 return;
             }
@@ -121,12 +121,17 @@ impl Uci {
                 }
             }
 
+            let mut promotion: Option<Piece> = None;
+            if s.len() == 5 {
+                promotion = Piece::from_str(&s[4..5]);
+            }
+
             self.board.move_piece(ResolvedMovement {
                 piece,
                 from,
                 to,
                 capture,
-                promotion: None,
+                promotion,
             });
         }
     }

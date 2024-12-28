@@ -86,12 +86,14 @@ impl TranspositionTable {
 
         let list = self.get_pv(board);
 
-        let score_unit = "cp"; // if last.mate { "mate" } else { "cp" };;
-        let score_value = node.value; //  if last.mate {
-                                      //     list.len() as i32
-                                      // } else {
-                                      //     last.score
-                                      // };
+        let is_mate = node.value <= (400000 + 100) || node.value >= (400000 - 100);
+
+        let score_unit = if is_mate { "mate" } else { "cp" };
+        let score_value = if is_mate {
+            list.len() as i32
+        } else {
+            node.value
+        };
 
         Ok(format!(
             "info depth {} nodes {} score {score_unit} {score_value} pv {}",

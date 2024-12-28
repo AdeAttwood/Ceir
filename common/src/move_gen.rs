@@ -233,22 +233,51 @@ pub fn pseudo_moves(board: &Board) -> Vec<ResolvedMovement> {
 
             let mut move_itr = BitBoardIterator::new(move_board);
             while let Some(move_index) = move_itr.next() {
-                output.push(ResolvedMovement {
-                    piece,
-                    from: Square::from_usize(index),
-                    to: Square::from_usize(move_index),
-                    promotion: None,
-                    capture: match board.get_piece_at(&bb!(move_index)) {
-                        Some((color, piece)) => {
-                            if color == board.turn.opposite() {
-                                Some(piece)
-                            } else {
-                                None
+                let move_bb = bb!(move_index);
+                let last_file = match board.turn {
+                    Color::White => RANK_BITBOARDS[7],
+                    Color::Black => RANK_BITBOARDS[0],
+                };
+
+                if piece == Piece::Pawn && (last_file & move_bb) > 0 {
+                    let promotable_pieces =
+                        [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight];
+                    for promotion in promotable_pieces {
+                        output.push(ResolvedMovement {
+                            piece,
+                            from: Square::from_usize(index),
+                            to: Square::from_usize(move_index),
+                            promotion: Some(promotion),
+                            capture: match board.get_piece_at(&bb!(move_index)) {
+                                Some((color, piece)) => {
+                                    if color == board.turn.opposite() {
+                                        Some(piece)
+                                    } else {
+                                        None
+                                    }
+                                }
+                                None => None,
+                            },
+                        });
+                    }
+                } else {
+                    output.push(ResolvedMovement {
+                        piece,
+                        from: Square::from_usize(index),
+                        to: Square::from_usize(move_index),
+                        promotion: None,
+                        capture: match board.get_piece_at(&bb!(move_index)) {
+                            Some((color, piece)) => {
+                                if color == board.turn.opposite() {
+                                    Some(piece)
+                                } else {
+                                    None
+                                }
                             }
-                        }
-                        None => None,
-                    },
-                });
+                            None => None,
+                        },
+                    });
+                }
             }
         }
     }
@@ -887,5 +916,15 @@ mod tests {
                 " . . . x . . . . ",
             ))
         );
+    }
+
+    #[test]
+    fn pawn_promotions() {
+        let moves = get_moves!("8/1P6/8/8/8/8/8/8 w - - 0 1");
+
+        assert_has_move!(moves, "b7b8q");
+        assert_has_move!(moves, "b7b8r");
+        assert_has_move!(moves, "b7b8n");
+        assert_has_move!(moves, "b7b8b");
     }
 }
