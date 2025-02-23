@@ -36,9 +36,24 @@ impl fmt::Display for Color {
     }
 }
 
+impl std::str::FromStr for Color {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "black" => Ok(Color::Black),
+            "white" => Ok(Color::White),
+            "b" => Ok(Color::Black),
+            "w" => Ok(Color::White),
+            _ => Err(format!("Unable to parse '{}' into a color", s)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn will_create_the_default_color() {
@@ -58,5 +73,14 @@ mod tests {
     fn formats_it_to_the_correct_word() {
         assert_eq!(format!("{}", Color::Black), "black");
         assert_eq!(format!("{}", Color::White), "white");
+    }
+
+    #[test]
+    fn from_str() {
+        assert_eq!(Color::from_str("w"), Ok(Color::White));
+        assert_eq!(Color::from_str("white"), Ok(Color::White));
+
+        assert_eq!(Color::from_str("b"), Ok(Color::Black));
+        assert_eq!(Color::from_str("black"), Ok(Color::Black));
     }
 }

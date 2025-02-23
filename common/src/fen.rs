@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::Color;
 use crate::Piece;
 use crate::Square;
@@ -86,16 +88,9 @@ impl Fen {
         }
 
         let color = parts.next();
-        let turn = if color == Some("w") {
-            Color::White
-        } else if color == Some("b") {
-            Color::Black
-        } else if let Some(c) = color {
-            return Err(format!("Unknown color '{c}' it must be one of (b, w)"));
-        } else {
-            // This needs to be here to satisfy rust however in reality this will be picked up by
-            // the six parts check.
-            return Err(format!("Unable to parse color"));
+        let turn = match color {
+            Some(c) => Color::from_str(c)?,
+            None => return Err("Unable to parse color".to_string()),
         };
 
         let mut fen = Fen {
@@ -193,10 +188,7 @@ mod tests {
     fn invalid_color() {
         let fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1";
         let message = Fen::from_str(fen_string).err().unwrap();
-        assert_eq!(
-            message,
-            String::from("Unknown color 'x' it must be one of (b, w)")
-        );
+        assert_eq!(message, String::from("Unable to parse 'x' into a color"));
     }
 
     macro_rules! assert_position {
