@@ -2,4 +2,4 @@
 
 [workspace]
 resolver = "2"
-members = [ "book", "cli", "common", "engine", "pgn" ]
+members = [ "book", "cli", "common", "engine", "game_review", "pgn" ]
