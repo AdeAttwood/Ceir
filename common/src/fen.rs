@@ -152,6 +152,17 @@ impl Fen {
         let fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         Fen::from_str(fen_string)
     }
+
+    pub fn to_string(&self) -> String {
+        let squares = self
+            .squares
+            .chunks(8)
+            .map(|file| "1".to_string())
+            .collect::<Vec<String>>()
+            .join("/");
+
+        format!("{} {}", squares.to_string(), self.turn)
+    }
 }
 
 #[cfg(test)]
@@ -263,5 +274,14 @@ mod tests {
 
         assert_eq!(fen.half_move_clock, 4);
         assert_eq!(fen.full_move_number, 5);
+    }
+
+    #[test]
+    fn to_string() {
+        let fen_string =
+            String::from("r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 5");
+        let fen = Fen::new(&fen_string).unwrap();
+
+        assert_eq!(fen.to_string(), fen_string);
     }
 }
