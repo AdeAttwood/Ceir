@@ -219,7 +219,7 @@ mod tests {
         assert_position!(&fen.squares[6], Some((Color::Black, Piece::Knight)));
         assert_position!(&fen.squares[7], Some((Color::Black, Piece::Rook)));
 
-        assert_eq!(true, matches!(fen.turn, Color::White));
+        assert!(matches!(fen.turn, Color::White));
     }
 
     macro_rules! assert_castling {

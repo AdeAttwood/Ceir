@@ -23,6 +23,12 @@ pub struct TranspositionTable {
     pub table: HashMap<u64, TTEntry>,
 }
 
+impl Default for TranspositionTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TranspositionTable {
     pub fn new() -> Self {
         Self {
@@ -48,7 +54,7 @@ impl TranspositionTable {
 
     pub fn get_pv(&self, board: &Board) -> Vec<ResolvedMovement> {
         let mut pv = Vec::new();
-        let mut current_pos = board.clone();
+        let mut current_pos = *board;
 
         while let Some(entry) = self.retrieve(current_pos.hash().unwrap()) {
             if let Some(best_move) = entry.movement {

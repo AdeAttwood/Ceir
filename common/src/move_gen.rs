@@ -383,7 +383,7 @@ pub fn castle_moves(board: &Board, &attackers: &BitBoard) -> Vec<ResolvedMovemen
 }
 
 pub fn is_move_to_check(board: &Board, movement: ResolvedMovement) -> bool {
-    let mut new_board = board.clone();
+    let mut new_board = *board;
     new_board.move_piece(movement);
     new_board.turn = new_board.turn.opposite();
 

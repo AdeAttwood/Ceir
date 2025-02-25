@@ -62,12 +62,12 @@ pub fn deindent(content: &str) -> String {
     let mut output = String::new();
     for line in content.trim_end().lines() {
         if line.trim().is_empty() {
-            output.push_str("\n");
+            output.push('\n');
             continue;
         }
 
         output.push_str(line.get(intent..).unwrap_or("\n"));
-        output.push_str("\n");
+        output.push('\n');
     }
 
     output
@@ -80,13 +80,13 @@ mod tests {
     #[test]
     fn boolean_args() {
         let mut builder = ArgBuilder::new(vec!["--help".to_string()]);
-        assert_eq!(true, builder.bool("--help", "-h"));
+        assert!(builder.bool("--help", "-h"));
 
         builder = ArgBuilder::new(vec!["-h".to_string()]);
-        assert_eq!(true, builder.bool("--help", "-h"));
+        assert!(builder.bool("--help", "-h"));
 
         builder = ArgBuilder::new(vec!["-h".to_string()]);
-        assert_eq!(false, builder.bool("--help", "-H"));
+        assert!(!builder.bool("--help", "-H"));
     }
 
     #[test]
