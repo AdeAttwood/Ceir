@@ -15,6 +15,7 @@ use crate::Square;
 /// ```
 /// use common::Fen;
 /// use common::Color;
+/// use std::str::FromStr;
 ///
 /// let fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 /// let fen = Fen::from_str(fen_string).unwrap();
@@ -144,19 +145,24 @@ impl Fen {
         Ok(fen)
     }
 
-    pub fn from_str(fen: &str) -> Result<Self, String> {
-        Self::new(&String::from(fen))
-    }
-
     pub fn from_start_position() -> Result<Self, String> {
         let fen_string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         Fen::from_str(fen_string)
     }
 }
 
+impl FromStr for Fen {
+    type Err = String;
+
+    fn from_str(fen: &str) -> Result<Self, Self::Err> {
+        Fen::new(&String::from(fen))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn dose_not_have_six_parts() {

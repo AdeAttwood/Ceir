@@ -9,6 +9,8 @@ use common::Piece;
 use common::ResolvedMovement;
 use common::Square;
 
+use std::str::FromStr;
+
 pub trait UciWriter {
     fn writeln(&mut self, output: &str);
 }
