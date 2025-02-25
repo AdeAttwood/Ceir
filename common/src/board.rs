@@ -8,6 +8,8 @@ use crate::Piece;
 use crate::ResolvedMovement;
 use crate::Square;
 
+use std::str::FromStr;
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Board {
     /// The color that is turn currently to move
