@@ -35,7 +35,7 @@ pub enum UciCommand {
 impl TryFrom<&String> for UciCommand {
     type Error = String;
     fn try_from(input: &String) -> Result<Self, Self::Error> {
-        let mut tokens = input.trim().split_whitespace();
+        let mut tokens = input.split_whitespace();
         let command = tokens.next();
 
         match command {
@@ -60,14 +60,14 @@ impl TryFrom<&String> for UciCommand {
                                 if let Some(fen_part) = tokens.next() {
                                     parts.push(String::from(fen_part));
                                 } else {
-                                    return Err(format!("Incomplete fen string"));
+                                    return Err("Incomplete fen string".to_string());
                                 }
                             }
 
                             options.position = parts.join(" ")
                         }
                         "moves" => {
-                            while let Some(m) = tokens.next() {
+                            for m in tokens.by_ref() {
                                 options.moves.push(String::from(m))
                             }
                         }
@@ -94,42 +94,42 @@ impl TryFrom<&String> for UciCommand {
                                 Ok(number) => options.depth = number,
                                 Err(message) => return Err(message.to_string()),
                             },
-                            None => return Err(format!("Missing depth")),
+                            None => return Err("Missing depth".to_string()),
                         },
                         "wtime" => match tokens.next() {
                             Some(depth) => match depth.to_string().parse::<i32>() {
                                 Ok(number) => options.wtime = number,
                                 Err(message) => return Err(message.to_string()),
                             },
-                            None => return Err(format!("Missing wtime value")),
+                            None => return Err("Missing wtime value".to_string()),
                         },
                         "btime" => match tokens.next() {
                             Some(depth) => match depth.to_string().parse::<i32>() {
                                 Ok(number) => options.btime = number,
                                 Err(message) => return Err(message.to_string()),
                             },
-                            None => return Err(format!("Missing btime value")),
+                            None => return Err("Missing btime value".to_string()),
                         },
                         "winc" => match tokens.next() {
                             Some(depth) => match depth.to_string().parse::<i32>() {
                                 Ok(number) => options.winc = number,
                                 Err(message) => return Err(message.to_string()),
                             },
-                            None => return Err(format!("Missing winc value")),
+                            None => return Err("Missing winc value".to_string()),
                         },
                         "binc" => match tokens.next() {
                             Some(depth) => match depth.to_string().parse::<i32>() {
                                 Ok(number) => options.binc = number,
                                 Err(message) => return Err(message.to_string()),
                             },
-                            None => return Err(format!("Missing binc value")),
+                            None => return Err("Missing binc value".to_string()),
                         },
                         "movestogo" => match tokens.next() {
                             Some(depth) => match depth.to_string().parse::<i32>() {
                                 Ok(number) => options.movestogo = number,
                                 Err(message) => return Err(message.to_string()),
                             },
-                            None => return Err(format!("Missing movestogo value")),
+                            None => return Err("Missing movestogo value".to_string()),
                         },
                         _ => return Err(format!("Unexpected token {token}")),
                     }

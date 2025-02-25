@@ -87,7 +87,7 @@ impl BitBoardIterator {
         if trailing == 64 {
             None
         } else {
-            self.board = self.board & !(1 << trailing);
+            self.board &= !(1 << trailing);
             Some(trailing)
         }
     }

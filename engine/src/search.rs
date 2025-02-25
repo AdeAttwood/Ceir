@@ -31,7 +31,7 @@ impl<'a, T: UciWriter + ?Sized> Search<'a, T> {
     }
 
     pub fn search(&mut self) {
-        let mut board = self.start_pos.clone();
+        let mut board = self.start_pos;
         self.nega_max(
             &mut board,
             &Vec::new(),
@@ -80,8 +80,8 @@ impl<'a, T: UciWriter + ?Sized> Search<'a, T> {
         }
 
         let mut moved = false;
-        let mut moves = vec![
-            pseudo_moves(&board),
+        let mut moves = [
+            pseudo_moves(board),
             castle_moves(board, &attacked_squares(board, &board.turn)),
         ]
         .concat();
@@ -89,10 +89,10 @@ impl<'a, T: UciWriter + ?Sized> Search<'a, T> {
         let mut best_value = i32::MIN;
         let mut best_move = None;
 
-        moves.sort_by_key(|m| move_sort::sort_key(&m));
+        moves.sort_by_key(move_sort::sort_key);
 
         for movement in &moves {
-            let mut new_board = board.clone();
+            let mut new_board = *board;
             new_board.move_piece(*movement);
 
             let attackers = attacked_squares(&new_board, &new_board.turn);
@@ -161,8 +161,8 @@ impl<'a, T: UciWriter + ?Sized> Search<'a, T> {
             alpha = score;
         }
 
-        let moves = vec![
-            pseudo_moves(&board),
+        let moves = [
+            pseudo_moves(board),
             castle_moves(board, &attacked_squares(board, &board.turn)),
         ]
         .concat();
@@ -172,7 +172,7 @@ impl<'a, T: UciWriter + ?Sized> Search<'a, T> {
                 return alpha;
             }
 
-            let mut new_board = board.clone();
+            let mut new_board = *board;
             new_board.move_piece(*movement);
 
             let score = -self.quiesce(&new_board, -beta, -alpha);

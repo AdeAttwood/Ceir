@@ -14,6 +14,12 @@ pub trait UciWriter {
 }
 
 pub struct UciOutputWriter {}
+impl Default for UciOutputWriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UciOutputWriter {
     pub fn new() -> Self {
         Self {}
@@ -29,6 +35,12 @@ impl UciWriter for UciOutputWriter {
 pub struct Uci {
     board: Board,
     transposition_table: TranspositionTable,
+}
+
+impl Default for Uci {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Uci {
@@ -116,7 +128,7 @@ impl Uci {
             if let Some((color, c)) = self.board.get_piece_at(&bb!(to)) {
                 capture = Some(c);
                 if color == self.board.turn {
-                    writer.writeln(&format!("You can not capture your own piece"));
+                    writer.writeln("You can not capture your own piece");
                     return;
                 }
             }

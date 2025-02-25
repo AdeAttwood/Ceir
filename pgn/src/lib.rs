@@ -316,7 +316,7 @@ mod tests {
             let file_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), file);
             let input = std::fs::read_to_string(&file_path).unwrap();
             let games = parse(&input).unwrap();
-            assert!(games.len() > 0);
+            assert!(!games.is_empty());
         }
     }
 }

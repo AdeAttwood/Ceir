@@ -90,7 +90,7 @@ impl Board {
 
     pub fn from_fen_str(fen: &str) -> Result<Self, String> {
         let mut board = Self::default();
-        board.load_fen(&Fen::from_str(&fen)?);
+        board.load_fen(&Fen::from_str(fen)?);
 
         Ok(board)
     }
@@ -143,7 +143,7 @@ impl Board {
     }
 
     pub fn get_piece_at(&self, source_board: &BitBoard) -> Option<(Color, Piece)> {
-        let bb = vec![self.black_boards(), self.white_boards()].concat();
+        let bb = [self.black_boards(), self.white_boards()].concat();
         for (color, piece, target_board) in bb {
             if source_board & target_board != 0 {
                 return Some((color, piece));
